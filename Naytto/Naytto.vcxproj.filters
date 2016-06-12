@@ -15,11 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Paaohjaus.ino" />
+    <None Include="Naytto.ino" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="__vm\.Paaohjaus.vsarduino.h">
+    <ClInclude Include="__vm\.Naytto.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="aareton.c">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
