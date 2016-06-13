@@ -27,7 +27,7 @@ extern uint8_t SevenSegment96x144Num[];
 extern uint8_t SevenSeg_XXXL_Num[];
 extern uint8_t GroteskBold32x64[];
 extern unsigned short aareton[];
-extern unsigned short bensa[];
+extern unsigned short bensaIkoni[];
 // Set the pins to the correct ones for your development shield
 // ------------------------------------------------------------
 // Standard Arduino Mega/Due shield            : <display model>,38,39,40,41
