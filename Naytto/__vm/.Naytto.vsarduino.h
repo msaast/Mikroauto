@@ -47,4 +47,6 @@ extern "C" void __cxa_pure_virtual() {;}
 #undef cli
 #define cli()
 #include <Naytto.ino>
+#include <aareton.c>
+#include <bensaIkoni.c>
 #endif

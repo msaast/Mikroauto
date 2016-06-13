@@ -27,6 +27,7 @@ extern uint8_t SevenSegment96x144Num[];
 extern uint8_t SevenSeg_XXXL_Num[];
 extern uint8_t GroteskBold32x64[];
 extern unsigned short aareton[];
+extern unsigned short bensa[];
 // Set the pins to the correct ones for your development shield
 // ------------------------------------------------------------
 // Standard Arduino Mega/Due shield            : <display model>,38,39,40,41
@@ -418,9 +419,12 @@ void mittarinTausta()
 	myGLCD.setFont(SmallFont);
 	myGLCD.print("RPM X1000", 5, 305);
 
+	//Bensammittari
+	myGLCD.setColor(VGA_BLACK);
+	myGLCD.drawRect(bensapalkkiXlahto - 1, bensapalkkiYlahto + 1, bensapalkkiXlahto + bensapalkkiLeveys + 1, bensapalkkiYlahto - bensapalkkiKorkeus - 1);
+	myGLCD.drawBitmap(bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 30, 30, 33, bensaIkoni);
 
 	//myGLCD.drawRect(340, 10, 450, 100);
-
 }
 
 void rajoituksenSyotto()
@@ -974,6 +978,6 @@ void bensaPiirto()
 				myGLCD.drawVLine(bensapalkkiXlahto, bensapalkkiYlahto + bensa + i, bensapalkkiLeveys);
 			}
 		}
+		bensaEdellinen = bensa;
 	}
-
 }
