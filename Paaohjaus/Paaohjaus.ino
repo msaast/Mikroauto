@@ -102,8 +102,8 @@ unsigned long rpmPullsiAika = 0; //Aika jolloin aloitettiin laskemaan kierros pu
 unsigned long rpmLaskentaAikaVanha = 0;
 unsigned long nopeudenLaskentaAikaVanha = 0;
 unsigned long bensaMittausAikaVanha = 0;
-bool vaihdeKytkinYlos = HIGH; //Vaihteen vaihto kytkin ylös tila
-bool vaihdeKytkinAlas = HIGH; //Vaihteen vaihto kytkin alas tila
+int vaihdeKytkinYlos = HIGH; //Vaihteen vaihto kytkin ylös tila
+int vaihdeKytkinAlas = HIGH; //Vaihteen vaihto kytkin alas tila
 int nopeus = 0; //Auton nopeus (km/h)
 int rpm = 0; //Moottorin kierrosnopeus (1/min)
 int nopeusRajoitus = 20;
@@ -182,7 +182,8 @@ void setup()
 	pinMode(jarruKytkinPin, INPUT_PULLUP); //Jaaruvalon kytkin
 	pinMode(vilkkuOikeaKytkinPin, INPUT_PULLUP); //Vilkku oikealle kytkin
 	pinMode(vilkkuVasenKytkinPin, INPUT_PULLUP); //Villku vasemmalle kytkin
-												 //Vaihteet
+
+	//Vaihteet
 	pinMode(vapaaPin, INPUT_PULLUP); //N
 	pinMode(ykkonenPin, INPUT_PULLUP); //1
 	pinMode(kakkonenPin, INPUT_PULLUP); //2
@@ -193,6 +194,9 @@ void setup()
 	pinMode(servoajuriKytkentaPin, OUTPUT); //Servon kytkentä
 
 	lueROM();
+	matka = 324.3;
+	trippi = 1121.2;
+
 }
 
 void loop()
@@ -237,11 +241,9 @@ void loop()
 	}
 
 	valot();
+	bensaTutkinta();
 
-	if (nopeus == 0)
-	{
-		bensa = map(analogRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
-	}
+
 
 	//vaihde = vaihteet[(PIOC->PIO_PDSR ^ B11111) >> 1]; //Due
 	vaihde = vaihteet[(PINC ^ B11111) >> 1]; //Mega
@@ -511,7 +513,7 @@ void laheta()
 	rajoitusPaalla = 'K';
 	}
 	*/
-	Serial.println("laheta");
+	//Serial.println("laheta");
 	int matkaVali = round(matka);
 	int trippiVali = round(trippi / 100) * 100; //Pyöristetään satojen tarkkuuteeen
 
@@ -534,10 +536,9 @@ void vastaanota()
 {
 	char otsikko;
 	int param;
+
 	while (Serial2.available() > 0)
 	{
-
-
 		otsikko = Serial2.read();
 		switch (otsikko)
 		{
@@ -561,6 +562,10 @@ void vastaanota()
 		default:
 			break;
 		}
+		Serial.print(" otsikko: ");
+		Serial.print(otsikko);
+		Serial.print(" data: ");
+		Serial.println(param, DEC);
 	}
 
 }
@@ -649,7 +654,8 @@ void valot()
 void bensaTutkinta()
 {
 	int bensaVali = map(analogRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
-
+	bensa = bensaVali;
+	/*
 	if (nopeus == 0)
 	{
 		bensa = bensaVali;
@@ -661,4 +667,5 @@ void bensaTutkinta()
 
 		}
 	}
+	*/
 }

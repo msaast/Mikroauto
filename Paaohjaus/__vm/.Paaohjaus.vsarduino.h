@@ -12,41 +12,43 @@
 #define _VSARDUINO_H_
 #define __AVR_ATmega2560__
 #define _VMDEBUG 1
-#define printf iprintf
-#define F_CPU 84000000L
+#define F_CPU 16000000L
 #define ARDUINO 10609
-#define ARDUINO_SAM_DUE
-#define ARDUINO_ARCH_SAM
-#define __SAM3X8E__
-#define USB_VID 0x2341
-#define USB_PID 0x003e
-#define USBCON
+#define ARDUINO_AVR_MEGA2560
+#define ARDUINO_ARCH_AVR
 #define __cplusplus 201103L
-#define __ARM__
-#define __arm__
+#define __AVR__
 #define __inline__
 #define __asm__(x)
 #define __extension__
-#define __ATTR_PURE__
-#define __ATTR_CONST__
 #define __inline__
 #define __volatile__
-#define _HAVE_STDC
-#define __ASM
-#define __INLINE
-#define __builtin_va_list void
-
-#define __attribute__(noinline)
-
-typedef unsigned char byte;
+#define GCC_VERSION 40801
+#define volatile(va_arg) 
+#define _CONST
+#define __builtin_va_start
+#define __builtin_va_end
+#define __attribute__(x)
+#define NOINLINE __attribute__((noinline))
+#define prog_void
+#define PGM_VOID_P int
+#ifndef __builtin_constant_p
+	#define __builtin_constant_p __attribute__((__const__))
+#endif
+#ifndef __builtin_strlen
+	#define __builtin_strlen  __attribute__((__const__))
+#endif
+#define NEW_H
+typedef void *__builtin_va_list;
 extern "C" void __cxa_pure_virtual() {;}
 
-#include "sam3xa.h"
+
+
 #include <arduino.h>
 #include <pins_arduino.h> 
-#include <variant.h> 
-#undef cli
-#define cli()
+#undef F
+#define F(string_literal) ((const PROGMEM char *)(string_literal))
+#undef PSTR
+#define PSTR(string_literal) ((const PROGMEM char *)(string_literal))")
 #include <Paaohjaus.ino>
-#include <..\Naytto\Naytto.ino>
 #endif

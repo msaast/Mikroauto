@@ -84,8 +84,8 @@ int punarajaIndeksi = 0;
 int bensapalkkiKorkeus = 120;
 int bensapalkkiLeveys = 30;
 int bensapalkkiXlahto = 5;
-int bensapalkkiYlahto = 160;
-int bensaVahissa = bensapalkkiYlahto - 20;
+int bensapalkkiYlahto = 126;
+int bensaVahissa = 20;
 
 
 //----------Värejä
@@ -168,11 +168,14 @@ void loop()
 	//Tietojenhaku
 	//vastaanotto();
 	digitalWrite(vastaanottoPin, HIGH);
-	delay(5);
+
 	//RPM
 	rpmFunktio();
 
 	digitalWrite(vastaanottoPin, LOW);
+
+	//Bensa
+	bensaPiirto();
 
 	//Nopeus
 	if (nopeus != nopeusEdellinen || printaaUudestaan == true)
@@ -307,7 +310,7 @@ void loop()
 
 
 		myGLCD.setFont(GroteskBold32x64);
-		myGLCD.printChar(vaihde[0], 30, 30);
+		myGLCD.printChar(vaihde[0], 80, 10);
 
 		vaihdeEdellinen[0] = vaihde[0];
 
@@ -422,7 +425,7 @@ void mittarinTausta()
 	//Bensammittari
 	myGLCD.setColor(VGA_BLACK);
 	myGLCD.drawRect(bensapalkkiXlahto - 1, bensapalkkiYlahto + 1, bensapalkkiXlahto + bensapalkkiLeveys + 1, bensapalkkiYlahto - bensapalkkiKorkeus - 1);
-	myGLCD.drawBitmap(bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 30, 30, 33, bensaIkoni);
+	myGLCD.drawBitmap(bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33, bensaIkoni);
 
 	//myGLCD.drawRect(340, 10, 450, 100);
 }
@@ -514,6 +517,11 @@ void rajoituksenSyotto()
 					waitForIt(160, 130, 300, 180);
 
 					laheta('R', atoi(stCurrent)); //Lähetyksen otsikko 'R' = rajoitus
+
+					while (Serial2.available() == 0)
+					{
+
+					}
 
 					while (Serial2.available() > 0)
 					{
@@ -881,10 +889,8 @@ void rpmFunktio()
 
 void serialEvent2()
 {
-	Serial.println("Jeee");
 	//Tiedon haku
-	//digitalWrite(vastaanottoPin, HIGH);
-
+	
 	while (Serial2.available() > 0)
 	{
 		if (Serial2.read() == 'A')
@@ -937,29 +943,51 @@ void laheta(char otsikko, int data)
 
 	Serial2.write(otsikko);
 	Serial2.write(data);
-
+	delay(80);
 	digitalWrite(lahetysPin, LOW);
 
 }
 void laheta(char otsikko)
 {
+	Serial.print("Lahetettava otsikko: ");
+	Serial.println(otsikko);
 	digitalWrite(lahetysPin, HIGH);
 	Serial2.write(otsikko);
+	delay(100);
 	digitalWrite(lahetysPin, LOW);
 }
-
 
 void bensaPiirto()
 {
 	if (bensa != bensaEdellinen)
 	{
+		if (bensa > bensaVahissa)
+		{
+			myGLCD.setColor(vapaaVari);
+			//vari = rpmVari;
+		}
+		else
+		{
+			myGLCD.setColor(rpmPuna);
+			//vari = rpmPuna;
+		}
+
+		for (int i = 0; i < bensapalkkiKorkeus; i++)
+		{
+			if (i > bensa)
+			{
+				myGLCD.setColor(rpmTausta);
+			}
+			myGLCD.drawHLine(bensapalkkiXlahto, bensapalkkiYlahto - i, bensapalkkiLeveys);
+		}
+		/*
 		if (bensa > bensaEdellinen)
 		{
 			for (int i = 0; i < bensa - bensaEdellinen; i++)
 			{
-				if (rpmIndeksiEdellinen + i < punarajaIndeksi)
+				if (bensa > bensaVahissa)
 				{
-					myGLCD.setColor(rpmVari);
+					myGLCD.setColor(vapaaVari);
 					//vari = rpmVari;
 				}
 				else
@@ -968,16 +996,18 @@ void bensaPiirto()
 					//vari = rpmPuna;
 				}
 
-				myGLCD.drawVLine(bensapalkkiXlahto, bensapalkkiYlahto + bensa + i, bensapalkkiLeveys);
+				myGLCD.drawHLine(bensapalkkiXlahto, bensapalkkiYlahto - bensaEdellinen - i, bensapalkkiLeveys);
 			}
 		}
 		else if (bensa < bensaEdellinen)
 		{
+			myGLCD.setColor(rpmTausta);
 			for (int i = 0; i < bensaEdellinen - bensa; i++)
 			{
-				myGLCD.drawVLine(bensapalkkiXlahto, bensapalkkiYlahto + bensa + i, bensapalkkiLeveys);
+				myGLCD.drawHLine(bensapalkkiXlahto, bensapalkkiYlahto - bensaEdellinen + i, bensapalkkiLeveys);
 			}
 		}
+		*/
 		bensaEdellinen = bensa;
 	}
 }
