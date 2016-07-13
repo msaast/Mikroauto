@@ -10,13 +10,18 @@
 //
 // This program requires the UTFT library.
 //
-#include <UTFT.h>
+//#include <UTFT.h>
 #include <UTouch.h>
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
+#include <TFT_HX8357_Due.h>
+#include "Free_Fonts.h" 
+
+TFT_HX8357_Due tft = TFT_HX8357_Due();
 
 // Declare which fonts we will be using
+/*
 extern uint8_t SmallFont[];
 extern uint8_t BigFont[];
 extern uint8_t Grotesk16x32[];
@@ -26,6 +31,7 @@ extern uint8_t SevenSegNumFont[];
 extern uint8_t SevenSegment96x144Num[];
 extern uint8_t SevenSeg_XXXL_Num[];
 extern uint8_t GroteskBold32x64[];
+*/
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
 // Set the pins to the correct ones for your development shield
@@ -36,7 +42,7 @@ extern unsigned short bensaIkoni[];
 // ElecHouse TFT LCD/SD Shield for Arduino Due : <display model>,22,23,31,33
 //
 // Remember to change the model parameter to suit your display module!
-UTFT myGLCD(ILI9481, 38, 39, 40, 41);
+//UTFT myGLCD(ILI9481, 38, 39, 40, 41);
 
 // Initialize touchscreen
 // ----------------------
@@ -91,12 +97,12 @@ int bensaVahissa = 20;
 //----------Värejä
 #define rpmVari 0x05FF
 #define rpmPuna 0xFA00
-#define rpmTausta VGA_WHITE
-#define rpmRajat VGA_BLACK
-#define rpmNumerot VGA_BLACK
+#define rpmTausta TFT_WHITE
+#define rpmRajat TFT_BLACK
+#define rpmNumerot TFT_BLACK
 #define rpmNumerotPuna rpmPuna
 #define vapaaVari 0x2EA1
-#define mittarinTaustaVari VGA_WHITE
+#define mittarinTaustaVari TFT_WHITE
 #define bensaOk 0x2EA1
 
 //-----Fontit
@@ -136,7 +142,7 @@ void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara);
 void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET], int pisteMaaraUlko, int pisteMaaraSisa);
 void mittarinTausta();
 void rajoituksenSyotto();
-void piirraEllipsi(int xKeski, int yKeski, int a, int b);
+void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari);
 
 void setup()
 {
@@ -155,7 +161,9 @@ void setup()
 	punarajaIndeksi = (pisteMaaraUlko * punaraja) / mittarinMaks;
 
 	// Setup the LCD
-	myGLCD.InitLCD();
+	tft.begin();
+	tft.setRotation(3);
+	//myGLCD.InitLCD();
 	//Kosketus asetukset
 	myTouch.InitTouch();
 	myTouch.setPrecision(PREC_MEDIUM);
@@ -180,29 +188,37 @@ void loop()
 	//Nopeus
 	if (nopeus != nopeusEdellinen || printaaUudestaan == true)
 	{
-		myGLCD.setFont(SevenSegment96x144Num);
+		//myGLCD.setFont(SevenSegment96x144Num);
 
 		if (nopeus > 9)
 		{
-			myGLCD.setColor(rpmRajat);
+			//myGLCD.setColor(rpmRajat);
+			tft.setTextColor(rpmRajat, mittarinTaustaVari);
 			if (nopeus > 99)
 			{
-				myGLCD.printNumI(99, 280, 166);
+				//myGLCD.printNumI(99, 280, 166);
+				tft.drawNumber(99, 280, 166, 1);
 			}
 			else
 			{
-				myGLCD.printNumI(nopeus, 280, 166);
+				//myGLCD.printNumI(nopeus, 280, 166);
+				tft.drawNumber(nopeus, 280, 166, 1);
 			}
 		}
 		else
 		{
 			if (nopeusEdellinen > 9)
 			{
-				myGLCD.setColor(mittarinTaustaVari);
-				myGLCD.fillRect(280, 166, 280 + 96 * 2, 166 + 144);
+				//myGLCD.setColor(mittarinTaustaVari);
+				//myGLCD.fillRect(280, 166, 280 + 96 * 2, 166 + 144);
+				tft.fillRect(280, 166, 96 * 2, 144, mittarinTaustaVari);
+
 			}
-			myGLCD.setColor(rpmRajat);
-			myGLCD.printNumI(nopeus, 280 + 96 / 2, 166);
+			//myGLCD.setColor(rpmRajat);
+			//myGLCD.printNumI(nopeus, 280 + 96 / 2, 166);
+			tft.setTextColor(rpmRajat, mittarinTaustaVari);
+			tft.drawNumber(nopeus, 280 + 96 / 2, 166, 1);
+
 		}
 		nopeusEdellinen = nopeus;
 	}
@@ -210,34 +226,43 @@ void loop()
 	//Rajoitus
 	if (rajoitus != rajoitusEdellinen || printaaUudestaan == true || rajoitusPaalla != rajoitusPaallaEdellinen)
 	{
-		myGLCD.setFont(SevenSegNumFont);
+		//myGLCD.setFont(SevenSegNumFont);
 
 		if (rajoitusPaalla == true)
 		{
-			myGLCD.setColor(mittarinTaustaVari);
-			myGLCD.fillRect(200 - 10, 220, 200 + 32 * 2 + 10, 220 + 50);
+			//myGLCD.setColor(mittarinTaustaVari);
+			//myGLCD.fillRect(200 - 10, 220, 200 + 32 * 2 + 10, 220 + 50);
+			tft.fillRect(200 - 10, 220, 32 * 2 + 10, 50, mittarinTaustaVari);
 
 			if (rajoitus > 9)
 			{
-				myGLCD.setColor(rpmRajat);
-				myGLCD.printNumI(rajoitus, 200, 220);
+				//myGLCD.setColor(rpmRajat);
+				//myGLCD.printNumI(rajoitus, 200, 220);
+				tft.setTextColor(rpmRajat, mittarinTaustaVari);
+				tft.drawNumber(rajoitus, 200, 220, 1);
 			}
 			else
 			{
-
-				myGLCD.setColor(rpmRajat);
-				myGLCD.printNumI(rajoitus, 200 + 32 / 2, 220);
+				//myGLCD.setColor(rpmRajat);
+				//myGLCD.printNumI(rajoitus, 200 + 32 / 2, 220);
+				tft.setTextColor(rpmRajat, mittarinTaustaVari);
+				tft.drawNumber(rajoitus, 200 + 32 / 2, 220, 1);
 			}
 		}
 		else
 		{
-			myGLCD.setColor(mittarinTaustaVari);
-			myGLCD.fillRect(200, 220, 200 + 32 * 2, 220 + 50);
+			//myGLCD.setColor(mittarinTaustaVari);
+			//myGLCD.fillRect(200, 220, 200 + 32 * 2, 220 + 50);
+			tft.fillRect(200, 220, 32 * 2,50, mittarinTaustaVari);
+
 			// Dimensions    : 77x35 pixels
-			myGLCD.drawBitmap(196, 230, 77, 35, aareton);
-			myGLCD.setColor(rpmRajat);
-			myGLCD.setFont(SmallFont);
-			myGLCD.printNumI(rajoitus, 228, 260);
+			//myGLCD.drawBitmap(196, 230, 77, 35, aareton);
+			//myGLCD.setColor(rpmRajat);
+			//myGLCD.setFont(SmallFont);
+			//myGLCD.printNumI(rajoitus, 228, 260);
+			drawIcon(aareton, 196, 230, 77, 35);
+			tft.setTextColor(rpmRajat, mittarinTaustaVari);
+			tft.drawNumber(rajoitus, 228, 260, 1);
 
 		}
 		rajoitusPaallaEdellinen = rajoitusPaalla;
@@ -256,9 +281,12 @@ void loop()
 		}
 		matkaPrint = matkaPrint + matkaVali + "km";
 
-		myGLCD.setColor(rpmRajat);
-		myGLCD.setFont(BigFont);
-		myGLCD.print(matkaPrint, 86, 250);
+		//myGLCD.setColor(rpmRajat);
+		//myGLCD.setFont(BigFont);
+		//myGLCD.print(matkaPrint, 86, 250);
+		tft.setTextColor(rpmRajat, mittarinTaustaVari);
+		tft.drawString(matkaPrint, 86, 250, 1);
+
 		matkaEdellinen = matka;
 	}
 
@@ -276,10 +304,14 @@ void loop()
 		}
 		trippiPrint = trippiPrint + trippiVali + "km";
 
-		myGLCD.setBackColor(255, 255, 255);
-		myGLCD.setColor(rpmRajat);
-		myGLCD.setFont(BigFont);
-		myGLCD.print(trippiPrint, 86, 280);
+		//myGLCD.setBackColor(255, 255, 255);
+		//myGLCD.setColor(rpmRajat);
+		//myGLCD.setFont(BigFont);
+		//myGLCD.print(trippiPrint, 86, 280);
+
+		tft.setTextColor(rpmRajat, mittarinTaustaVari);
+		tft.drawString(trippiPrint, 86, 280, 1);
+
 		trippiEdellinen = trippi;
 	}
 
@@ -297,20 +329,24 @@ void loop()
 
 		if (vaihde[0] == 'N')
 		{
-			myGLCD.setColor(vapaaVari);
+			//myGLCD.setColor(vapaaVari);
+			tft.setTextColor(vapaaVari, mittarinTaustaVari);
 		}
 		else if (rpm > punaraja)
 		{
-			myGLCD.setColor(rpmPuna);
+			//myGLCD.setColor(rpmPuna);
+			tft.setTextColor(rpmPuna, mittarinTaustaVari);
 		}
 		else if (rpm < punaraja)
 		{
-			myGLCD.setColor(rpmRajat);
+			//myGLCD.setColor(rpmRajat);
+			tft.setTextColor(rpmRajat, mittarinTaustaVari);
 		}
 
 
-		myGLCD.setFont(GroteskBold32x64);
-		myGLCD.printChar(vaihde[0], 80, 10);
+		//myGLCD.setFont(GroteskBold32x64);
+		//myGLCD.printChar(vaihde[0], 80, 10);
+		tft.drawChar(vaihde[0], 80, 10, 1);
 
 		vaihdeEdellinen[0] = vaihde[0];
 
@@ -327,6 +363,7 @@ void loop()
 
 	}
 
+	/*
 	//Kosketus
 	if (myTouch.dataAvailable() == true && koskettu == false)
 	{
@@ -361,31 +398,38 @@ void loop()
 	{
 		koskettu = false;
 	}
-
+	*/
 
 	//delay(loopViive);
 }
 
 void mittarinTausta()
 {
-	myGLCD.clrScr();
-	myGLCD.fillScr(mittarinTaustaVari);//Tausta väri
-	myGLCD.setBackColor(mittarinTaustaVari);
+	//myGLCD.clrScr();
+	//myGLCD.fillScr(mittarinTaustaVari);//Tausta väri
+	//myGLCD.setBackColor(mittarinTaustaVari);
+	tft.fillScreen(TFT_BLACK);
+	tft.fillScreen(mittarinTaustaVari);
 
 	//RPM-asteikko
-	myGLCD.setFont(rpmNumerotFont);
+	//myGLCD.setFont(rpmNumerotFont);
 	//Grotesk16x32: X = 16, Y = 32, X + i
 	int fonttiValistysX = 16;
 	int fonttiValistysY = 34;
+	int vari;
 	for (int i = 1; i < jako + 1; i++)
 	{
 		if (i * 1000 >= punaraja)
 		{
-			myGLCD.setColor(rpmNumerotPuna);
+			tft.setTextColor(rpmNumerotPuna);
+			//vari = rpmNumerotPuna;
+			//myGLCD.setColor(rpmNumerotPuna);
 		}
 		else
 		{
-			myGLCD.setColor(rpmNumerot);
+			tft.setTextColor(rpmNumerot);
+			//vari = rpmNumerot;
+			//myGLCD.setColor(rpmNumerot);
 		}
 		if (i >= 10)
 		{
@@ -396,40 +440,45 @@ void mittarinTausta()
 			fonttiValistysX = 16;
 		}
 		int vali = pisteMaaraUlko / jako;
-		//myGLCD.drawCircle(kehaPisteetUlko[0][i * vali], kehaPisteetUlko[1][i * vali], 3);
-		myGLCD.printNumI(i, kehaPisteetUlko[0][i * vali] - fonttiValistysX + i, kehaPisteetUlko[1][i * vali] - fonttiValistysY);
+		tft.drawNumber(i, kehaPisteetUlko[0][i * vali] - fonttiValistysX + i, kehaPisteetUlko[1][i * vali] - fonttiValistysY, 8);
+		//myGLCD.printNumI(i, kehaPisteetUlko[0][i * vali] - fonttiValistysX + i, kehaPisteetUlko[1][i * vali] - fonttiValistysY);
 	}
 
 	//RPM rajat
-	myGLCD.setColor(rpmRajat);
-	piirraEllipsi(xK, yK, ulkoA + 1, ulkuB + 1);
-	piirraEllipsi(xK, yK, sisaA - 1, sisaB - 1);
-	myGLCD.drawLine(xK - ulkoA, yK, xK - sisaA, yK);
-	myGLCD.drawLine(xK, yK - ulkuB, xK, yK - sisaB);
+	//myGLCD.setColor(rpmRajat);
+	piirraEllipsi(xK, yK, ulkoA + 1, ulkuB + 1, rpmRajat);
+	piirraEllipsi(xK, yK, sisaA - 1, sisaB - 1, rpmRajat);
+	tft.drawLine(xK - ulkoA, yK, xK - sisaA, yK, rpmRajat);
+	tft.drawLine(xK, yK - ulkuB, xK, yK - sisaB, rpmRajat);
 
 	//Rajoitus
-	myGLCD.setColor(VGA_BLACK);
-	myGLCD.setFont(BigFont);
-	myGLCD.print("LIMIT", 270 - 37 * 2 - 6, 220 - 20);
+	//myGLCD.setColor(VGA_BLACK);
+	//myGLCD.setFont(BigFont);
+	//myGLCD.print("LIMIT", 270 - 37 * 2 - 6, 220 - 20);
+	tft.setTextColor(rpmNumerot);
+	tft.drawString("LIMIT", 270 - 37 * 2 - 6, 220 - 20, 2);
 
 	//Nopeus yksikkö
-	myGLCD.setColor(VGA_BLACK);
-	myGLCD.setFont(BigFont);
-	myGLCD.print("km/h", 270 - 32 * 2, 220 + 70);
+	//myGLCD.setColor(VGA_BLACK);
+	//myGLCD.setFont(BigFont);
+	//myGLCD.print("km/h", 270 - 32 * 2, 220 + 70);
+	tft.drawString("km/h", 270 - 32 * 2, 220 + 70, 2);
 
 	//RPM yksikkö
-	myGLCD.setColor(VGA_BLACK);
-	myGLCD.setFont(SmallFont);
-	myGLCD.print("RPM X1000", 5, 305);
+	//myGLCD.setColor(VGA_BLACK);
+	//myGLCD.setFont(SmallFont);
+	//myGLCD.print("RPM X1000", 5, 305);
+	tft.drawString("RPM X1000", 5, 305, 1);
 
 	//Bensammittari
-	myGLCD.setColor(VGA_BLACK);
-	myGLCD.drawRect(bensapalkkiXlahto - 1, bensapalkkiYlahto + 1, bensapalkkiXlahto + bensapalkkiLeveys + 1, bensapalkkiYlahto - bensapalkkiKorkeus - 1);
-	myGLCD.drawBitmap(bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33, bensaIkoni);
-
+	//myGLCD.setColor(VGA_BLACK);
+	//myGLCD.drawRect(bensapalkkiXlahto - 1, bensapalkkiYlahto + 1, bensapalkkiXlahto + bensapalkkiLeveys + 1, bensapalkkiYlahto - bensapalkkiKorkeus - 1);
+	//myGLCD.drawBitmap(bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33, bensaIkoni);
+	drawIcon(bensaIkoni, bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33);
 	//myGLCD.drawRect(340, 10, 450, 100);
 }
 
+/*
 void rajoituksenSyotto()
 {
 
@@ -620,6 +669,8 @@ void nappaimisto()
 	myGLCD.setBackColor(0, 0, 0);
 }
 
+
+
 void updateStr(int val)
 {
 	if (stCurrentLen<20)
@@ -644,6 +695,8 @@ void updateStr(int val)
 	}
 }
 
+
+
 // Draw a red frame while a button is touched
 void waitForIt(int x1, int y1, int x2, int y2)
 {
@@ -654,8 +707,11 @@ void waitForIt(int x1, int y1, int x2, int y2)
 	myGLCD.setColor(255, 255, 255);
 	myGLCD.drawRoundRect(x1, y1, x2, y2);
 }
+*/
 
-void piirraEllipsi(int xKeski, int yKeski, int a, int b)
+
+
+void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari)
 {
 	int a2 = a * a;
 	int b2 = b * b;
@@ -670,7 +726,8 @@ void piirraEllipsi(int xKeski, int yKeski, int a, int b)
 		//myGLCD.drawPixel(xc + x, yc + y);
 		//myGLCD.drawPixel(xc - x, yc + y);
 		//myGLCD.drawPixel(xc + x, yc - y);
-		myGLCD.drawPixel(xKeski - x, yKeski - y);
+		//myGLCD.drawPixel(xKeski - x, yKeski - y);
+		tft.drawPixel(xKeski - x, yKeski - y, vari);
 
 		if (sigma >= 0)
 		{
@@ -688,8 +745,8 @@ void piirraEllipsi(int xKeski, int yKeski, int a, int b)
 		//myGLCD.drawPixel(xc + x, yc + y);
 		//myGLCD.drawPixel(xc - x, yc + y);
 		//myGLCD.drawPixel(xc + x, yc - y);
-		myGLCD.drawPixel(xKeski - x, yKeski - y);
-
+		//myGLCD.drawPixel(xKeski - x, yKeski - y);
+		tft.drawPixel(xKeski - x, yKeski - y, vari);
 
 		if (sigma >= 0)
 		{
@@ -810,32 +867,6 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 	}
 }
 
-void demo()
-{
-	for (int i = 0; i < pisteMaaraUlko; i++)
-	{
-		if (i < (pisteMaaraUlko / 5) * 4)
-		{
-			myGLCD.setColor(0, 191, 255);
-		}
-		else
-		{
-			myGLCD.setColor(255, 64, 0);
-		}
-		myGLCD.drawLine(kehaPisteetUlko[0][i], kehaPisteetUlko[1][i], kehaPisteetSisaHidasdettu[0][i], kehaPisteetSisaHidasdettu[1][i]);
-		//delay(5);
-	}
-	delay(1000);
-
-
-	myGLCD.setColor(255, 255, 255);
-
-	for (int i = pisteMaaraUlko - 1; i > -1; i--)
-	{
-		myGLCD.drawLine(kehaPisteetUlko[0][i], kehaPisteetUlko[1][i], kehaPisteetSisaHidasdettu[0][i], kehaPisteetSisaHidasdettu[1][i]);
-		//delay(5);
-	}
-}
 
 void rpmFunktio()
 {
@@ -853,34 +884,33 @@ void rpmFunktio()
 	myGLCD.printNumI(rpm, 5, 5);
 	myGLCD.printNumI(analogRead(A1), 5, 20);
 	*/
-
+	int vari;
 	if (rpmIndeksi > rpmIndeksiEdellinen) //Piirtää uutta
 	{
 		for (int i = 0; i < rpmIndeksi - rpmIndeksiEdellinen; i++)
 		{
-			//int vari;
 			if (rpmIndeksiEdellinen + i < punarajaIndeksi)
 			{
-				myGLCD.setColor(rpmVari);
-				//vari = rpmVari;
+				//myGLCD.setColor(rpmVari);
+				vari = rpmVari;
 			}
 			else
 			{
-				myGLCD.setColor(rpmPuna);
-				//vari = rpmPuna;
+				//myGLCD.setColor(rpmPuna);
+				vari = rpmPuna;
 			}
 
-			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i]);
-			//tft.drawLine(kehaPisteetUlko[0][rpmIndeksiVanha + i], kehaPisteetUlko[1][rpmIndeksiVanha + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiVanha + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiVanha + i], vari);
+			//myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i]);
+			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i], vari);
 		}
 	}
 	else if (rpmIndeksi < rpmIndeksiEdellinen) //Pyyhkii vanhaa
 	{
 		for (int i = 0; i < rpmIndeksiEdellinen - rpmIndeksi; i++)
 		{
-			myGLCD.setColor(rpmTausta);
-			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i]);
-			//tft.drawLine(kehaPisteetUlko[0][rpmIndeksiVanha - i], kehaPisteetUlko[1][rpmIndeksiVanha - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiVanha - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiVanha - i], rpmTausta);
+			//myGLCD.setColor(rpmTausta);
+			//myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i]);
+			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i], rpmTausta);
 
 		}
 	}
@@ -959,26 +989,29 @@ void laheta(char otsikko)
 
 void bensaPiirto()
 {
+	int vari;
 	if (bensa != bensaEdellinen)
 	{
 		if (bensa > bensaVahissa)
 		{
-			myGLCD.setColor(vapaaVari);
-			//vari = rpmVari;
+			//myGLCD.setColor(vapaaVari);
+			vari = vapaaVari;
 		}
 		else
 		{
-			myGLCD.setColor(rpmPuna);
-			//vari = rpmPuna;
+			//myGLCD.setColor(rpmPuna);
+			vari = rpmPuna;
 		}
 
 		for (int i = 0; i < bensapalkkiKorkeus; i++)
 		{
 			if (i > bensa)
 			{
-				myGLCD.setColor(rpmTausta);
+				vari = rpmTausta;
+				//myGLCD.setColor(rpmTausta);
 			}
-			myGLCD.drawHLine(bensapalkkiXlahto, bensapalkkiYlahto - i, bensapalkkiLeveys);
+			//myGLCD.drawHLine(bensapalkkiXlahto, bensapalkkiYlahto - i, bensapalkkiLeveys);
+			tft.drawFastHLine(bensapalkkiXlahto, bensapalkkiYlahto - i, bensapalkkiLeveys, vari);
 		}
 		/*
 		if (bensa > bensaEdellinen)
@@ -1009,5 +1042,43 @@ void bensaPiirto()
 		}
 		*/
 		bensaEdellinen = bensa;
+	}
+}
+
+//====================================================================================
+// This is the function to draw the icon stored as an array in program memory (FLASH)
+//====================================================================================
+
+// To speed up rendering we use a 64 pixel buffer
+#define BUFF_SIZE 64
+
+// Draw array "icon" of defined width and height at coordinate x,y
+// Maximum icon size is 255x255 pixels to avoid integer overflow
+
+void drawIcon(const unsigned short* icon, int16_t x, int16_t y, int8_t width, int8_t height) {
+
+	uint16_t  pix_buffer[BUFF_SIZE];   // Pixel buffer (16 bits per pixel)
+
+									   // Set up a window the right size to stream pixels into
+	tft.setWindow(x, y, x + width - 1, y + height - 1);
+
+	// Work out the number whole buffers to send
+	uint16_t nb = ((uint16_t)height * width) / BUFF_SIZE;
+
+	// Fill and send "nb" buffers to TFT
+	for (int i = 0; i < nb; i++) {
+		for (int j = 0; j < BUFF_SIZE; j++) {
+			pix_buffer[j] = pgm_read_word(&icon[i * BUFF_SIZE + j]);
+		}
+		tft.pushColors(pix_buffer, BUFF_SIZE);
+	}
+
+	// Work out number of pixels not yet sent
+	uint16_t np = ((uint16_t)height * width) % BUFF_SIZE;
+
+	// Send any partial buffer left over
+	if (np) {
+		for (int i = 0; i < np; i++) pix_buffer[i] = pgm_read_word(&icon[nb * BUFF_SIZE + i]);
+		tft.pushColors(pix_buffer, np);
 	}
 }
