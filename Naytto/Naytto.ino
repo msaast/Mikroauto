@@ -20,11 +20,11 @@
 extern uint8_t SmallFont[];
 extern uint8_t BigFont[];
 extern uint8_t Grotesk16x32[];
-extern uint8_t Grotesk24x48[];
-extern uint8_t Grotesk32x64[];
+//extern uint8_t Grotesk24x48[];
+//extern uint8_t Grotesk32x64[];
 extern uint8_t SevenSegNumFont[];
 extern uint8_t SevenSegment96x144Num[];
-extern uint8_t SevenSeg_XXXL_Num[];
+//extern uint8_t SevenSeg_XXXL_Num[];
 extern uint8_t GroteskBold32x64[];
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
@@ -130,6 +130,10 @@ bool vaihtoValo = false, vaihtoValo2 = false;
 bool liikaaKierroksia = false;
 bool jarruPohjassa = false;
 
+float fps = 0;
+unsigned long fpsVanha = 0;
+
+
 //----------Funktioiden otsikot
 int pisteetTaulukkoon(int xKeski, int yKeski, int a, int b, short kehaPisteet[RIVIT][MAXPISTEET]);
 void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara);
@@ -165,6 +169,14 @@ void setup()
 
 void loop()
 {
+
+	fps = 1000 / double(millis() - fpsVanha);
+	fpsVanha = millis();
+	myGLCD.setColor(rpmRajat);
+	myGLCD.setFont(BigFont);
+	myGLCD.printNumF(fps, 2, 200, 10);
+
+
 	//Tietojenhaku
 	//vastaanotto();
 	digitalWrite(vastaanottoPin, HIGH);
