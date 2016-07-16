@@ -148,6 +148,10 @@ bool vaihtoValo = false, vaihtoValo2 = false;
 bool liikaaKierroksia = false;
 bool jarruPohjassa = false;
 
+float fps = 0;
+unsigned long fpsVanha = 0;
+int kierto = 0;
+
 //----------Funktioiden otsikot
 int pisteetTaulukkoon(int xKeski, int yKeski, int a, int b, short kehaPisteet[RIVIT][MAXPISTEET]);
 void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara);
@@ -185,6 +189,22 @@ void setup()
 
 void loop()
 {
+	/*
+	fps++;
+
+	if (millis() - fpsVanha > 1000)
+	{
+		tft.setTextColor(rpmRajat, mittarinTaustaVari);
+		tft.drawNumber(fps, 200, 10, 4);
+		fps = 0;
+		fpsVanha = millis();
+	}
+	*/
+	fps = 1000 / double(millis() - fpsVanha);
+	fpsVanha = millis();
+	tft.setTextColor(rpmRajat, mittarinTaustaVari);
+	tft.drawFloat(fps, 2, 200, 10, 4);
+
 	//Tietojenhaku
 	//vastaanotto();
 	digitalWrite(vastaanottoPin, HIGH);
@@ -192,6 +212,8 @@ void loop()
 	//RPM
 	rpmFunktio();
 
+	delayMicroseconds(500);
+	//Viivettä ylös oloon
 	digitalWrite(vastaanottoPin, LOW);
 
 	//Bensa
@@ -280,6 +302,9 @@ void loop()
 		rajoitusPaallaEdellinen = rajoitusPaalla;
 		rajoitusEdellinen = rajoitus;
 	}
+
+
+
 
 	//Matkamittari
 	if (matka != matkaEdellinen || printaaUudestaan == true)
