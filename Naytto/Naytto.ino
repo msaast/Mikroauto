@@ -892,59 +892,65 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 		}
 	}
 }
-
-
 void rpmFunktio()
 {
-	//rpm = map(analogRead(A1), 0, 1023, 1, 8000);
 
-	//TODO Laske indeksit kierroksien mukaan. Inkrementoi loopissa kierroksia.
-
-
-	rpmIndeksi = round((pisteMaaraUlko * rpm) / float(mittarinMaks));
-
-	if (rpmIndeksi > pisteMaaraUlko)
+	if (rpm > rpmEdellinen) //Piirt‰‰ uutta
 	{
-		rpmIndeksi = pisteMaaraUlko;
-	}
-	/*
-	myGLCD.setColor(rpmVari);
-	myGLCD.setFont(SmallFont);
-	myGLCD.printNumI(rpm, 5, 5);
-	myGLCD.printNumI(analogRead(A1), 5, 20);
-	*/
-	int vari;
-	if (rpmIndeksi > rpmIndeksiEdellinen) //Piirt‰‰ uutta
-	{
-		for (int i = 0; i < rpmIndeksi - rpmIndeksiEdellinen; i++)
+		int vari;
+		for (rpmVali = rpmEdellinen; rpmVali < rpm; rpmVali = rpmVali + 10)
 		{
-			if (rpmIndeksiEdellinen + i < punarajaIndeksi)
+			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
+			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
+
+			rpmIndeksiSisa = rpmIndeksiSisa - 20;
+			if (rpmIndeksiSisa < 0)
 			{
-				//myGLCD.setColor(rpmVari);
+				rpmIndeksiSisa = 0;
+			}
+
+			if (rpmIndeksiUlko > pisteMaaraUlko || rpmIndeksiSisa > pisteMaaraSisa)
+			{
+				rpmIndeksiUlko = pisteMaaraUlko;
+				rpmIndeksiSisa = pisteMaaraSisa;
+			}
+
+			if (rpmIndeksiUlko < punarajaIndeksiUlko)
+			{
 				vari = rpmVari;
 			}
 			else
 			{
-				//myGLCD.setColor(rpmPuna);
 				vari = rpmPuna;
 			}
 
-			//myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i]);
-			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i], vari);
+			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisaHidasdettu[0][rpmIndeksiSisa], kehaPisteetSisaHidasdettu[1][rpmIndeksiSisa], vari);
 		}
 	}
-	else if (rpmIndeksi < rpmIndeksiEdellinen) //Pyyhkii vanhaa
+	else if (rpm < rpmEdellinen) //Pyyhkii vanhaa
 	{
-		for (int i = 0; i < rpmIndeksiEdellinen - rpmIndeksi; i++)
+		for (rpmVali = rpmEdellinen; rpmVali > rpm; rpmVali = rpmVali - 10)
 		{
-			//myGLCD.setColor(rpmTausta);
-			//myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i]);
-			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i], rpmTausta);
+			if (rpmVali < 0)
+			{
+				rpmVali = 1;
+			}
+			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
+			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
 
+			rpmIndeksiSisa = rpmIndeksiSisa - 20;
+			if (rpmIndeksiSisa < 0)
+			{
+				rpmIndeksiSisa = 0;
+			}
+
+			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisaHidasdettu[0][rpmIndeksiSisa], kehaPisteetSisaHidasdettu[1][rpmIndeksiSisa], rpmTausta);
 		}
 	}
-	rpmIndeksiEdellinen = rpmIndeksi;
+
+	rpmEdellinen = rpm;
 }
+
 
 void serialEvent2()
 {
