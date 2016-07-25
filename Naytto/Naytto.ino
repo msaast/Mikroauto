@@ -5,7 +5,7 @@
 
 TFT_HX8357_Due tft = TFT_HX8357_Due();
 
-//#include <UTouch.h>
+#include <UTouch.h>
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
@@ -36,7 +36,7 @@ extern unsigned short bensaIkoni[];
 // Teensy 3.x TFT Test Board                   : 26,31,27,28,29
 // ElecHouse TFT LCD/SD Shield for Arduino Due : 25,26,27,29,30
 //
-//UTouch  myTouch(6, 5, 4, 3, 2);
+UTouch  myTouch(6, 5, 4, 3, 2);
 
 //---------------Pinnit		Käytettävät 8, 9, 10, 11. Sarja 14, 15 
 const int vastaanottoPin = 8;
@@ -160,8 +160,8 @@ void setup()
 	tft.setRotation(3);
 	//myGLCD.InitLCD();
 	//Kosketus asetukset
-	//myTouch.InitTouch();
-	//myTouch.setPrecision(PREC_MEDIUM);
+	myTouch.InitTouch();
+	myTouch.setPrecision(PREC_MEDIUM);
 
 	mittarinTausta();
 }
@@ -184,16 +184,13 @@ void loop()
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
 	tft.drawFloat(fps, 2, 200, 10, 4);
 
-	//delayMicroseconds(350);
-	//Viivettä ylös oloon
-
-
 	//Tietojenhaku
-	//vastaanotto();
 	digitalWrite(vastaanottoPin, HIGH);
 
 	//RPM
 	rpmFunktio();
+	//delayMicroseconds(350);
+	//Viivettä ylös oloon
 
 	digitalWrite(vastaanottoPin, LOW);
 
@@ -391,7 +388,7 @@ void loop()
 
 	}
 
-	/*
+	
 	//Kosketus
 	if (myTouch.dataAvailable() == true && koskettu == false)
 	{
@@ -401,7 +398,7 @@ void loop()
 
 		if (xKord >= 200 && xKord <= 470 && yKord >= 160 && yKord <= 310 && rajoitusPaalla != true)
 		{
-			rajoituksenSyotto();
+			//rajoituksenSyotto();
 			mittarinTausta();
 			rpmIndeksiEdellinen = 0;
 			printaaUudestaan = true;
@@ -426,7 +423,7 @@ void loop()
 	{
 		koskettu = false;
 	}
-	*/
+	
 
 	//delay(loopViive);
 }

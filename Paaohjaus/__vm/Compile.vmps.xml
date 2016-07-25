@@ -8,54 +8,6 @@
     <VCCodeModel>
       <VCCodeMacros />
     </VCCodeModel>
-    <BreakPoints>
-      <BreakPoint Index="1" Name="Paaohjaus.ino, line 251" Id="ccf8a82a-9410-49d9-a8d5-18e5982c784c" Enabled="1" Message="{bensa} {fps}" MessageTextType="2" PreProcessedMessage="{0} {1}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\paaohjaus\paaohjaus.ino" FileLine="251" FileColumn="1" FunctionName="loop()" FunctionLineOffset="43" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='ccf8a82a-9410-49d9-a8d5-18e5982c784c'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
-        <Source>244		{
-245			OCR3A = 0; //5 PWM duty %
-246					   //analogWrite(rajoitusPWM, 0);
-247		}
-248	
-249		valot();
-250		bensaTutkinta();
---&gt;251	
-252	
-253	
-254		//vaihde = vaihteet[(PIOC-&gt;PIO_PDSR ^ B11111) &gt;&gt; 1]; //Due
-255		vaihde = vaihteet[(PINC ^ B11111) &gt;&gt; 1]; //Mega
-256	
-257	
-258												 //Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylh��ll�
-259		if (millis() - vaihtoNappiVanhaAika &gt; vaihtoNappiAika)
-260		{
-</Source>
-        <MessageVariables>
-          <MessageVariable Name="bensa" Index="1" />
-          <MessageVariable Name="fps" Index="2" />
-        </MessageVariables>
-      </BreakPoint>
-      <BreakPoint Index="2" Name="Naytto.ino, line 211" Id="38c1b8de-349a-479e-a284-c97589aa6f5c" Enabled="1" Message="{fps}" MessageTextType="2" PreProcessedMessage="{0}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\naytto\naytto.ino" FileLine="211" FileColumn="1" FunctionName="loop()" FunctionLineOffset="17" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='38c1b8de-349a-479e-a284-c97589aa6f5c'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
-        <Source>204		fpsVanha = millis();
-205		tft.setTextColor(rpmRajat, mittarinTaustaVari);
-206		tft.drawFloat(fps, 2, 200, 10, 4);
-207	
-208		//delayMicroseconds(350);
-209		//Viivett� yl�s oloon
-210	
---&gt;211	
-212		//Tietojenhaku
-213		//vastaanotto();
-214		digitalWrite(vastaanottoPin, HIGH);
-215	
-216		//RPM
-217		rpmFunktio();
-218	
-219		digitalWrite(vastaanottoPin, LOW);
-220	
-</Source>
-        <MessageVariables>
-          <MessageVariable Name="fps" Index="1" />
-        </MessageVariables>
-      </BreakPoint>
-    </BreakPoints>
+    <BreakPoints />
   </Program>
 </VisualMicro>
