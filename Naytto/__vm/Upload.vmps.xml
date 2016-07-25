@@ -9,47 +9,24 @@
       <VCCodeMacros />
     </VCCodeModel>
     <BreakPoints>
-      <BreakPoint Index="1" Name="Paaohjaus.ino, line 245" Id="ccf8a82a-9410-49d9-a8d5-18e5982c784c" Enabled="1" Message="{bensa}" MessageTextType="2" PreProcessedMessage="{0}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\paaohjaus\paaohjaus.ino" FileLine="245" FileColumn="1" FunctionName="loop()" FunctionLineOffset="43" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='ccf8a82a-9410-49d9-a8d5-18e5982c784c'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
-        <Source>238		{
-239			OCR3A = 0; //5 PWM duty %
-240					   //analogWrite(rajoitusPWM, 0);
-241		}
-242	
-243		valot();
-244		bensaTutkinta();
---&gt;245	
-246	
-247	
-248		//vaihde = vaihteet[(PIOC-&gt;PIO_PDSR ^ B11111) &gt;&gt; 1]; //Due
-249		vaihde = vaihteet[(PINC ^ B11111) &gt;&gt; 1]; //Mega
-250	
-251	
-252												 //Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylh��ll�
-253		if (millis() - vaihtoNappiVanhaAika &gt; vaihtoNappiAika)
-254		{
-</Source>
-        <MessageVariables>
-          <MessageVariable Name="bensa" Index="1" />
-        </MessageVariables>
-      </BreakPoint>
-      <BreakPoint Index="2" Name="Naytto.ino, line 178" Id="5a8c2c55-cffe-48a8-a307-f914af36b1e5" Enabled="1" Message="{fps}" MessageTextType="2" PreProcessedMessage="{0}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\naytto\naytto.ino" FileLine="178" FileColumn="1" FunctionName="loop()" FunctionLineOffset="8" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='1711407f-ef94-4626-8f63-b2cdf8c906b7'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
-        <Source>171	{
-172	
-173		fps = 1000 / double(millis() - fpsVanha);
-174		fpsVanha = millis();
-175		myGLCD.setColor(rpmRajat);
-176		myGLCD.setFont(BigFont);
-177		myGLCD.printNumF(fps, 2, 200, 10);
---&gt;178	
-179	
-180		//Tietojenhaku
-181		//vastaanotto();
-182		digitalWrite(vastaanottoPin, HIGH);
-183	
-184		//RPM
-185		rpmFunktio();
-186	
-187		digitalWrite(vastaanottoPin, LOW);
+      <BreakPoint Index="1" Name="Naytto.ino, line 193" Id="38c1b8de-349a-479e-a284-c97589aa6f5c" Enabled="1" Message="{fps}" MessageTextType="2" PreProcessedMessage="{0}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\naytto\naytto.ino" FileLine="193" FileColumn="1" FunctionName="loop()" FunctionLineOffset="20" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='38c1b8de-349a-479e-a284-c97589aa6f5c'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
+        <Source>186	
+187		//RPM
+188		rpmFunktio();
+189	
+190		digitalWrite(vastaanottoPin, LOW);
+191	
+192		//Bensa
+--&gt;193		bensaPiirto();
+194	
+195		//Nopeus
+196		if (nopeus != nopeusEdellinen || printaaUudestaan == true)
+197		{
+198			myGLCD.setFont(SevenSegment96x144Num);
+199	
+200			if (nopeus &gt; 9)
+201			{
+202				myGLCD.setColor(rpmRajat);
 </Source>
         <MessageVariables>
           <MessageVariable Name="fps" Index="1" />

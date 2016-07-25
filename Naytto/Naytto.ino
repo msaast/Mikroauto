@@ -77,8 +77,9 @@ short kehaPisteetSisa[RIVIT][MAXPISTEET] = { 0 };
 short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET] = { 0 };
 //Indeksit ja laskurit
 int pisteMaaraUlko = 0, pisteMaaraSisa = 0;
-int rpmIndeksi = 0, rpmIndeksiEdellinen = 0;
-int punarajaIndeksi = 0;
+int rpmIndeksiUlko = 0, rpmIndeksiSisa = 0;
+int rpmVali = 0;
+int punarajaIndeksiUlko = 0, punarajaIndeksiSisa = 0;
 
 //---------Bensa asetukset
 int bensapalkkiKorkeus = 120;
@@ -117,7 +118,7 @@ bool koskettu = false;
 const int trippiNollausAika = 750;
 
 //--------N‰ytett‰v‰t arvot
-int rpm = 0; //Moottorin kierrosnopeus (1/min)
+int rpm = 0, rpmEdellinen = 0; //Moottorin kierrosnopeus (1/min)
 int nopeus = 8, nopeusEdellinen = 0;
 char vaihde[1] = { 'N' }, vaihdeEdellinen[1];
 int matka = 34, matkaEdellinen = 0;
@@ -155,8 +156,9 @@ void setup()
 	pisteMaaraSisa = pisteetTaulukkoon(xK, yK, sisaA, sisaB, kehaPisteetSisa);
 	jarjasta(kehaPisteetUlko, pisteMaaraUlko);
 	jarjasta(kehaPisteetSisa, pisteMaaraSisa);
-	hidastaSisa(kehaPisteetSisa, kehaPisteetSisaHidasdettu, pisteMaaraUlko, pisteMaaraSisa);
-	punarajaIndeksi = (pisteMaaraUlko * punaraja) / mittarinMaks;
+	//hidastaSisa(kehaPisteetSisa, kehaPisteetSisaHidasdettu, pisteMaaraUlko, pisteMaaraSisa);
+	punarajaIndeksiUlko = (pisteMaaraUlko * punaraja) / mittarinMaks;
+	punarajaIndeksiSisa = (pisteMaaraSisa * punaraja) / mittarinMaks;
 
 	// Setup the LCD
 	myGLCD.InitLCD();
@@ -350,7 +352,6 @@ void loop()
 		{
 			rajoituksenSyotto();
 			mittarinTausta();
-			rpmIndeksiEdellinen = 0;
 			printaaUudestaan = true;
 		}
 		else if (xKord >= 0 && xKord <= 199 && yKord >= 160 && yKord <= 310)
@@ -851,27 +852,26 @@ void demo()
 
 void rpmFunktio()
 {
-	//rpm = map(analogRead(A1), 0, 1023, 1, 8000);
-
-	rpmIndeksi = round((pisteMaaraUlko * rpm) / float(mittarinMaks));
-
-	if (rpmIndeksi > pisteMaaraUlko)
+	if (rpm > rpmEdellinen) //Piirt‰‰ uutta
 	{
-		rpmIndeksi = pisteMaaraUlko;
-	}
-	/*
-	myGLCD.setColor(rpmVari);
-	myGLCD.setFont(SmallFont);
-	myGLCD.printNumI(rpm, 5, 5);
-	myGLCD.printNumI(analogRead(A1), 5, 20);
-	*/
-
-	if (rpmIndeksi > rpmIndeksiEdellinen) //Piirt‰‰ uutta
-	{
-		for (int i = 0; i < rpmIndeksi - rpmIndeksiEdellinen; i++)
+		for (rpmVali = rpmEdellinen; rpmVali < rpm; rpmVali = rpmVali + 10)
 		{
-			//int vari;
-			if (rpmIndeksiEdellinen + i < punarajaIndeksi)
+			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
+			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
+
+			rpmIndeksiSisa = rpmIndeksiSisa - 20;
+			if (rpmIndeksiSisa < 0)
+			{
+				rpmIndeksiSisa = 0;
+			}
+
+			if (rpmIndeksiUlko > pisteMaaraUlko || rpmIndeksiSisa > pisteMaaraSisa)
+			{
+				rpmIndeksiUlko = pisteMaaraUlko;
+				rpmIndeksiSisa = pisteMaaraSisa;
+			}
+
+			if (rpmIndeksiUlko < punarajaIndeksiUlko)
 			{
 				myGLCD.setColor(rpmVari);
 				//vari = rpmVari;
@@ -881,22 +881,33 @@ void rpmFunktio()
 				myGLCD.setColor(rpmPuna);
 				//vari = rpmPuna;
 			}
-
-			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen + i], kehaPisteetUlko[1][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen + i]);
-			//tft.drawLine(kehaPisteetUlko[0][rpmIndeksiVanha + i], kehaPisteetUlko[1][rpmIndeksiVanha + i], kehaPisteetSisaHidasdettu[0][rpmIndeksiVanha + i], kehaPisteetSisaHidasdettu[1][rpmIndeksiVanha + i], vari);
+			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisa[0][rpmIndeksiSisa], kehaPisteetSisa[1][rpmIndeksiSisa]);
 		}
 	}
-	else if (rpmIndeksi < rpmIndeksiEdellinen) //Pyyhkii vanhaa
+	else if (rpm < rpmEdellinen) //Pyyhkii vanhaa
 	{
-		for (int i = 0; i < rpmIndeksiEdellinen - rpmIndeksi; i++)
-		{
-			myGLCD.setColor(rpmTausta);
-			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiEdellinen - i], kehaPisteetUlko[1][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiEdellinen - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiEdellinen - i]);
-			//tft.drawLine(kehaPisteetUlko[0][rpmIndeksiVanha - i], kehaPisteetUlko[1][rpmIndeksiVanha - i], kehaPisteetSisaHidasdettu[0][rpmIndeksiVanha - i], kehaPisteetSisaHidasdettu[1][rpmIndeksiVanha - i], rpmTausta);
+		myGLCD.setColor(rpmTausta);
 
+		for (rpmVali = rpmEdellinen; rpmVali > rpm; rpmVali = rpmVali - 10)
+		{
+			if (rpmVali < 0)
+			{
+				rpmVali = 1;
+			}
+			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
+			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
+
+			rpmIndeksiSisa = rpmIndeksiSisa - 20;
+			if (rpmIndeksiSisa < 0)
+			{
+				rpmIndeksiSisa = 0;
+			}
+
+			myGLCD.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisa[0][rpmIndeksiSisa], kehaPisteetSisa[1][rpmIndeksiSisa]);
 		}
 	}
-	rpmIndeksiEdellinen = rpmIndeksi;
+	
+	rpmEdellinen = rpm;
 }
 
 void serialEvent2()
