@@ -1,15 +1,3 @@
-// UTFT_Demo_480x320 
-// Copyright (C)2015 Rinky-Dink Electronics, Henning Karlsen. All right reserved
-// web: http://www.RinkyDinkElectronics.com/
-//
-// This program is a demo of how to use most of the functions
-// of the library with a supported display modules.
-//
-// This demo was made for modules with a screen resolution 
-// of 480x320 pixels.
-//
-// This program requires the UTFT library.
-//
 //#include <UTFT.h>
 #include <User_Setup.h>
 #include <TFT_HX8357_Due.h>
@@ -37,15 +25,6 @@ extern uint8_t GroteskBold32x64[];
 */
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
-// Set the pins to the correct ones for your development shield
-// ------------------------------------------------------------
-// Standard Arduino Mega/Due shield            : <display model>,38,39,40,41
-// CTE TFT LCD/SD Shield for Arduino Due       : <display model>,25,26,27,28
-// Teensy 3.x TFT Test Board                   : <display model>,23,22, 3, 4
-// ElecHouse TFT LCD/SD Shield for Arduino Due : <display model>,22,23,31,33
-//
-// Remember to change the model parameter to suit your display module!
-//UTFT myGLCD(ILI9481, 38, 39, 40, 41);
 
 // Initialize touchscreen
 // ----------------------
@@ -163,7 +142,7 @@ void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari);
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(250000);
+	Serial2.begin(1000000);
 
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
@@ -200,10 +179,14 @@ void loop()
 		fpsVanha = millis();
 	}
 	*/
-	fps = 1000 / double(millis() - fpsVanha);
+	fps = double(millis() - fpsVanha);
 	fpsVanha = millis();
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
 	tft.drawFloat(fps, 2, 200, 10, 4);
+
+	//delayMicroseconds(350);
+	//Viivettä ylös oloon
+
 
 	//Tietojenhaku
 	//vastaanotto();
@@ -212,8 +195,6 @@ void loop()
 	//RPM
 	rpmFunktio();
 
-	delayMicroseconds(500);
-	//Viivettä ylös oloon
 	digitalWrite(vastaanottoPin, LOW);
 
 	//Bensa
@@ -919,6 +900,9 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 void rpmFunktio()
 {
 	//rpm = map(analogRead(A1), 0, 1023, 1, 8000);
+
+	//TODO Laske indeksit kierroksien mukaan. Inkrementoi loopissa kierroksia.
+
 
 	rpmIndeksi = round((pisteMaaraUlko * rpm) / float(mittarinMaks));
 

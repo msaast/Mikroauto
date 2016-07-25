@@ -132,10 +132,13 @@ int nopeusIndeksi = 0;
 double nopeusSumma = 0;
 double rpmSumma = 0;
 
+long fps = 0;
+unsigned long fpsVanha = 0;
+
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(250000);
+	Serial2.begin(1000000);
 
 	//Jos rajoitus kytkin on päällä, kun autoon kytketään virrat, niin laitetaan rajoitus päälle.
 	pinMode(rajoituksenKytkentaPin, INPUT);
@@ -201,6 +204,9 @@ void setup()
 
 void loop()
 {
+	fps = micros() - fpsVanha;
+	fpsVanha = micros();
+
 	//Aika mikä valein nopeus lasketaan.
 	if (millis() - nopeudenLaskentaAikaVanha >= nopeudenLaskentaAika)
 	{
@@ -282,6 +288,8 @@ void loop()
 		if (kuittaus == true && vaihtoNappiYlhaalla == true)
 		{
 			vaihtoNappiYlhaalla = false;
+
+			//TODO  Mieti veihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
 			if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
 			{
 				kuittaus = false; //Kirjotetaan vaihteen vaihto kuittas epätodeksi, koska ruvetaan vaihtamaan vaihdetta.

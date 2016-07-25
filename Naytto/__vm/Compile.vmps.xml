@@ -32,28 +32,27 @@
           <MessageVariable Name="bensa" Index="1" />
         </MessageVariables>
       </BreakPoint>
-      <BreakPoint Index="2" Name="Naytto.ino, line 214" Id="be82f4c4-3250-4dd5-8905-c4b6fc41084f" Enabled="1" Message="{fps} jlk {rpm}" MessageTextType="0" PreProcessedMessage="{0} jlk {1}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\naytto\naytto.ino" FileLine="214" FileColumn="1" FunctionName="loop()" FunctionLineOffset="12" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='be82f4c4-3250-4dd5-8905-c4b6fc41084f'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
-        <Source>207	
-208		//Tietojenhaku
-209		//vastaanotto();
-210		digitalWrite(vastaanottoPin, HIGH);
-211	
-212		//RPM
-213		rpmFunktio();
---&gt;214	
-215		delayMicroseconds(500);
-216		//Viivett� yl�s oloon
-217		digitalWrite(vastaanottoPin, LOW);
+      <BreakPoint Index="2" Name="Naytto.ino, line 211" Id="38c1b8de-349a-479e-a284-c97589aa6f5c" Enabled="1" Message="{fps}" MessageTextType="2" PreProcessedMessage="{0}" Condition="" ConditionType="1" CurrentHits="0" File="c:\users\ernomasa\documents\arduino\mikroauto\naytto\naytto.ino" FileLine="211" FileColumn="1" FunctionName="loop()" FunctionLineOffset="17" FunctionColumnOffset="1" HitCountTarget="1" HitCountType="1" Language="C++" LocationType="3" Tag="&lt;vmbp Id='38c1b8de-349a-479e-a284-c97589aa6f5c'/&gt;" Type="1" ToString="System.__ComObject" BreakWhenHit="0">
+        <Source>204		fpsVanha = millis();
+205		tft.setTextColor(rpmRajat, mittarinTaustaVari);
+206		tft.drawFloat(fps, 2, 200, 10, 4);
+207	
+208		//delayMicroseconds(350);
+209		//Viivett� yl�s oloon
+210	
+--&gt;211	
+212		//Tietojenhaku
+213		//vastaanotto();
+214		digitalWrite(vastaanottoPin, HIGH);
+215	
+216		//RPM
+217		rpmFunktio();
 218	
-219		//Bensa
-220		bensaPiirto();
-221	
-222		//Nopeus
-223		if (nopeus != nopeusEdellinen || printaaUudestaan == true)
+219		digitalWrite(vastaanottoPin, LOW);
+220	
 </Source>
         <MessageVariables>
           <MessageVariable Name="fps" Index="1" />
-          <MessageVariable Name="rpm" Index="2" />
         </MessageVariables>
       </BreakPoint>
     </BreakPoints>
