@@ -227,8 +227,5 @@ __attribute__((always_inline)) static __INLINE void __set_PRIMASK(uint32_t priMa
 }
 
 
-#include <Naytto.ino>
-#include <Free_Fonts.h>
-#include <aareton.c>
-#include <bensaIkoni.c>
+#include "Naytto.ino"
 #endif

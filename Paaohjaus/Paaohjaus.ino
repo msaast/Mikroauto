@@ -55,7 +55,7 @@ const int kolmonenPin = 34; //3
 const int pakkiPin = 33; //R
 						 //Vakioita
 const float pii = 3.14159; //Pii
-const int kierrosTaulukkoKOKO = 10;
+const int kierrosTaulukkoKOKO = 20;
 const int nopeusTaulukkoKOKO = 10;
 
 /*
@@ -86,6 +86,8 @@ const int vilkkuNopeus = 20000; //Alustavasti hyvä taajuus
 const int pakkiRajoitus = 5; //Pakin nopeusrajoitus
 const int minRajoitus = 5;
 const int maxRajoitus = 30;
+const int maxNayttoKierrokset = 11; //*1000
+const int punaraja = 8000;
 const int bensapalkkiKorkeus = 120;
 
 //Globaalit muuttujat
@@ -289,7 +291,7 @@ void loop()
 		{
 			vaihtoNappiYlhaalla = false;
 
-			//TODO  Mieti veihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
+			//TODO  Mieti vaihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
 			if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
 			{
 				kuittaus = false; //Kirjotetaan vaihteen vaihto kuittas epätodeksi, koska ruvetaan vaihtamaan vaihdetta.
@@ -676,4 +678,23 @@ void bensaTutkinta()
 		}
 	}
 	*/
+}
+
+void alkuarvojenLahetys()
+{
+	char kuittaus = ' ';
+
+	while (kuittaus != 'O')
+	{
+		Serial2.write('A');
+		Serial2.write(minRajoitus);
+		Serial2.write(maxRajoitus);
+		Serial2.write(punaraja);
+		Serial2.write(maxNayttoKierrokset);
+
+		while (Serial2.available() == 0){}
+
+		kuittaus = Serial2.read();
+	}
+
 }
