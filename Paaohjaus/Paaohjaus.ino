@@ -140,7 +140,7 @@ unsigned long fpsVanha = 0;
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(1000000);
+	Serial2.begin(57600);
 
 	//Jos rajoitus kytkin on päällä, kun autoon kytketään virrat, niin laitetaan rajoitus päälle.
 	pinMode(rajoituksenKytkentaPin, INPUT);
@@ -214,12 +214,16 @@ void loop()
 	{
 		nopeusLaskuri();
 		nopeudenLaskentaAikaVanha = millis();
+		Serial.println("nopeus");
+		Serial.println(nopeus);
 	}
 	//Aika mikä valein kierrosnopeus lasketaan.
 	if (millis() - rpmLaskentaAikaVanha >= rpmLaskentaAika)
 	{
 		rpmLaskuri();
 		rpmLaskentaAikaVanha = millis();
+		Serial.println("rpm");
+		Serial.println(rpm);
 	}
 	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
 	if ((rajoitus == true && nopeus > nopeusRajoitus) || (vaihde == 'R'))
@@ -251,13 +255,10 @@ void loop()
 	valot();
 	bensaTutkinta();
 
-
-
 	//vaihde = vaihteet[(PIOC->PIO_PDSR ^ B11111) >> 1]; //Due
 	vaihde = vaihteet[(PINC ^ B11111) >> 1]; //Mega
 
-
-											 //Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylhäällä
+	//Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylhäällä
 	if (millis() - vaihtoNappiVanhaAika > vaihtoNappiAika)
 	{
 		vaihtoNappiYlhaalla = true;

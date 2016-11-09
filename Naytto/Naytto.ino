@@ -114,10 +114,7 @@ const int ruutuAika = 32; //ms noin 30 fps
 int minNopeus = 5, maxNopeus = 20;
 
 //---------Joitain kosketukseen liityvää
-int x, y;
-char stCurrent[20] = "";
-int stCurrentLen = 0;
-char stLast[20] = "";
+
 int xKord = 0, yKord = 0; //Kosketus koordinaatit
 bool printaaUudestaan = true;
 bool koskettu = false;
@@ -129,7 +126,7 @@ int nopeus = 8, nopeusEdellinen = 0;
 char vaihde[1] = { 'N' }, vaihdeEdellinen[1];
 int matka = 34, matkaEdellinen = 0;
 unsigned int trippi = 12200, trippiEdellinen = 0;
-int rajoitus = 3, rajoitusEdellinen = 0;
+int rajoitus = 10, rajoitusEdellinen = 0;
 bool rajoitusPaalla = false, rajoitusPaallaEdellinen = true;
 int bensa = 0, bensaEdellinen = 0;
 
@@ -154,7 +151,7 @@ int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR);
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(1000000);
+	Serial2.begin(57600);
 
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
@@ -449,7 +446,7 @@ void loop()
 		koskettu = false;
 	}
 	
-
+	delay(3);
 }
 
 void mittarinTausta()
@@ -766,20 +763,21 @@ void rajoituksenSyotto()
 {
 	bool ok = false;
 	const XYpaikka OkNappi = { 360, 260 };
-	const XYpaikka alku = {50, 160};
+	const XYpaikka alku = {100, 160};
 	const XYpaikka loppu = { xPikselit - alku.X, alku.Y};
 	XYpaikka saadinKeski;
 	saadinKeski.Y = alku.Y;
 	int vanhaX = 0, vanhaX2;
 	XYpaikka temp;
 
-	const int saadinXr = 60 / 2;
+	const int saadinXr = 80 / 2;
 	const int saadinYr = 140 / 2;
 	const int OkXr = 40 / 2;
 	const int OkYr = 40 / 2;
 	const int liukupituus = xPikselit - alku.X * 2;
 
-	saadinKeski.X = (liukupituus / float(maxNopeus - minNopeus)) * nopeus;
+	saadinKeski.X = (liukupituus / float(maxNopeus - minNopeus)) * rajoitus;
+	vanhaX = saadinKeski.X;
 
 	tft.fillScreen(mittarinTaustaVari);
 	tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, rpmVari);
@@ -789,6 +787,7 @@ void rajoituksenSyotto()
 	tft.drawFloat(1.3, 2, 200, 10, 4);
 
 	int laskuri = 0;
+	const int toleranssi = 40;
 	while (myTouch.dataAvailable() == true){}
 	while (true)
 	{
@@ -803,45 +802,56 @@ void rajoituksenSyotto()
 			{
 				while (myTouch.dataAvailable() == true)
 				{
-					
+					delay(20);
 					myTouch.read();
-					temp.X = myTouch.getX();
-					if (temp.X == vanhaX2)
+					saadinKeski.X = myTouch.getX();
+					
+					//tarkasta.X >= keski.X - xR && tarkasta.X <= keski.X + xR
+					if (!(saadinKeski.X >= vanhaX - toleranssi && saadinKeski.X <= vanhaX + toleranssi))// (saadinKeski.X < 0 || saadinKeski.X > xPikselit)
 					{
-						laskuri++;
+						saadinKeski.X = vanhaX;
+						//Serial.println("toleranssi");
 					}
-					else
+
+
+					if (saadinKeski.X < alku.X)
 					{
-						laskuri = 0;
+						saadinKeski.X = alku.X;
+						//Serial.println("alku");
 					}
-					vanhaX2 = temp.X;
-
-					if (laskuri >= 1)
+					else if (saadinKeski.X > loppu.X)
 					{
-						saadinKeski.X = temp.X;
+						saadinKeski.X = loppu.X;
+						//Serial.println("loppu");
+					}
 
-						laskuri = 0;
-						if (saadinKeski.X < alku.X)
-						{
-							saadinKeski.X = alku.X;
-						}
-						else if (saadinKeski.X > loppu.X)
-						{
-							saadinKeski.X = loppu.X;
-						}
+					Serial.println(saadinKeski.X);
 
-						tft.drawFloat(saadinKeski.X, 2, 200, 10, 4);
+					tft.drawFloat(saadinKeski.X, 2, 200, 10, 4);
 
-						if (saadinKeski.X != vanhaX)
+					if (saadinKeski.X != vanhaX)
+					{
+						int erotus = vanhaX - saadinKeski.X;
+
+						if (erotus < 0)
 						{
 							//Kumita vanha
-							tft.fillRect(vanhaX - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, mittarinTaustaVari);
+							tft.fillRect(vanhaX - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
 							//Piirrä uusi
-							tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, rpmVari);
-							vanhaX = saadinKeski.X;
+							tft.fillRect(vanhaX + saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
 						}
-					}
+						else
+						{
+							//Kumita vanha
+							tft.fillRect(vanhaX + saadinXr - erotus, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
+							//Piirrä uusi
+							tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
 
+						}
+						//Piirrä uusi
+						//tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, rpmVari);
+						vanhaX = saadinKeski.X;
+					}
 				}
 			}
 			else if (onkoSuorakaiteessa(temp, OkNappi, OkXr, OkYr) == EXIT_SUCCESS)
@@ -862,7 +872,6 @@ int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR)
 	}
 	return EXIT_FAILURE;
 }
-
 
 int keskiLaskin(int uusiPikseli, int liukupituus)
 {
@@ -892,7 +901,6 @@ void alkuarvojenHaku()
 	}
 	mittarinMaks = jako * 1000;
 }
-
 
 void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari)
 {
