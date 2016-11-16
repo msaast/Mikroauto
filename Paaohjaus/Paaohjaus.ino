@@ -137,7 +137,7 @@ unsigned long fpsVanha = 0;
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(460800);
+	Serial2.begin(250000);
 
 	//Jos rajoitus kytkin on p‰‰ll‰, kun autoon kytket‰‰n virrat, niin laitetaan rajoitus p‰‰lle.
 	pinMode(rajoituksenKytkentaPin, INPUT);

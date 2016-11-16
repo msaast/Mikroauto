@@ -124,7 +124,7 @@ const int trippiNollausAika = 750;
 //--------Näytettävät arvot
 int rpm = 0, rpmEdellinen = 0, rpmVali = 0; //Moottorin kierrosnopeus (1/min)
 int nopeus = 8, nopeusEdellinen = 0;
-char vaihde[1] = { 'N' }, vaihdeEdellinen[1];
+char vaihde = 'N', vaihdeEdellinen;
 int matka = 34, matkaEdellinen = 0;
 unsigned int trippi = 12200, trippiEdellinen = 0;
 int rajoitus = 10, rajoitusEdellinen = 0;
@@ -153,7 +153,7 @@ int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR);
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(460800);
+	Serial2.begin(250000);
 
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
@@ -226,7 +226,7 @@ void loop()
 	
 		//Bensa
 		//bensaPiirto();
-
+		
 		//Nopeus
 		if (nopeus != nopeusEdellinen || printaaUudestaan == true)
 		{
@@ -264,7 +264,8 @@ void loop()
 			}
 			nopeusEdellinen = nopeus;
 		}
-
+		
+		
 		//Rajoitus
 		if (rajoitus != rajoitusEdellinen || printaaUudestaan == true || rajoitusPaalla != rajoitusPaallaEdellinen)
 		{
@@ -310,7 +311,7 @@ void loop()
 			rajoitusPaallaEdellinen = rajoitusPaalla;
 			rajoitusEdellinen = rajoitus;
 		}
-
+		
 		//Matkamittari
 		if (matka != matkaEdellinen || printaaUudestaan == true)
 		{
@@ -338,7 +339,7 @@ void loop()
 
 			matkaEdellinen = matka;
 		}
-
+		
 		//Trippi
 		if (trippi != trippiEdellinen || printaaUudestaan == true)
 		{
@@ -366,7 +367,7 @@ void loop()
 
 			trippiEdellinen = trippi;
 		}
-
+		
 		//Vaide
 		if (rpm > punaraja)
 		{
@@ -376,10 +377,10 @@ void loop()
 		{
 			vaihtoValo = false;
 		}
-		if (vaihde[0] != vaihdeEdellinen[0] || printaaUudestaan == true || vaihtoValo != vaihtoValo2)
+		if (vaihde != vaihdeEdellinen || printaaUudestaan == true || vaihtoValo != vaihtoValo2)
 		{
-
-			if (vaihde[0] == 'N')
+			
+			if (vaihde == 'N')
 			{
 				//myGLCD.setColor(vapaaVari);
 				tft.setTextColor(vapaaVari, mittarinTaustaVari);
@@ -395,12 +396,11 @@ void loop()
 				tft.setTextColor(rpmRajat, mittarinTaustaVari);
 			}
 
-
 			//myGLCD.setFont(GroteskBold32x64);
 			//myGLCD.printChar(vaihde[0], 80, 10);
-			tft.drawChar(vaihde[0], 80, 10, vaihdeFontti);
-
-			vaihdeEdellinen[0] = vaihde[0];
+			//tft.drawChar(vaihde, 80, 10, vaihdeFontti);
+			
+			vaihdeEdellinen = vaihde;
 
 			printaaUudestaan = false;
 
@@ -414,6 +414,7 @@ void loop()
 			}
 
 		}
+		
 	}
 	
 	//Kosketus
@@ -428,7 +429,7 @@ void loop()
 			rajoituksenSyotto();
 			mittarinTausta();
 			rpmEdellinen = 1;
-			//printaaUudestaan = true;
+			printaaUudestaan = true;
 			uudetArvot = true;
 		}
 		else if (xKord >= 0 && xKord <= 199 && yKord >= 160 && yKord <= 310)
@@ -451,8 +452,7 @@ void loop()
 	{
 		koskettu = false;
 	}
-	
-	//delay(3);
+	digitalWrite(vastaanottoPin, LOW);
 }
 
 void mittarinTausta()
@@ -530,238 +530,6 @@ void mittarinTausta()
 	drawIcon(bensaIkoni, bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33);
 	//myGLCD.drawRect(340, 10, 450, 100);
 }
-
-/*
-void rajoituksenSyotto()
-{
-
-	nappaimisto();
-
-	while (true)
-	{
-		if (myTouch.dataAvailable())
-		{
-			myTouch.read();
-			x = myTouch.getX();
-			y = myTouch.getY();
-
-			if ((y >= 10) && (y <= 60))  // Upper row
-			{
-				if ((x >= 10) && (x <= 60))  // Button: 1
-				{
-					waitForIt(10, 10, 60, 60);
-					updateStr('1');
-				}
-				if ((x >= 70) && (x <= 120))  // Button: 2
-				{
-					waitForIt(70, 10, 120, 60);
-					updateStr('2');
-				}
-				if ((x >= 130) && (x <= 180))  // Button: 3
-				{
-					waitForIt(130, 10, 180, 60);
-					updateStr('3');
-				}
-				if ((x >= 190) && (x <= 240))  // Button: 4
-				{
-					waitForIt(190, 10, 240, 60);
-					updateStr('4');
-				}
-				if ((x >= 250) && (x <= 300))  // Button: 5
-				{
-					waitForIt(250, 10, 300, 60);
-					updateStr('5');
-				}
-			}
-
-			if ((y >= 70) && (y <= 120))  // Center row
-			{
-				if ((x >= 10) && (x <= 60))  // Button: 6
-				{
-					waitForIt(10, 70, 60, 120);
-					updateStr('6');
-				}
-				if ((x >= 70) && (x <= 120))  // Button: 7
-				{
-					waitForIt(70, 70, 120, 120);
-					updateStr('7');
-				}
-				if ((x >= 130) && (x <= 180))  // Button: 8
-				{
-					waitForIt(130, 70, 180, 120);
-					updateStr('8');
-				}
-				if ((x >= 190) && (x <= 240))  // Button: 9
-				{
-					waitForIt(190, 70, 240, 120);
-					updateStr('9');
-				}
-				if ((x >= 250) && (x <= 300))  // Button: 0
-				{
-					waitForIt(250, 70, 300, 120);
-					updateStr('0');
-				}
-			}
-
-			if ((y >= 130) && (y <= 180))  // Upper row
-			{
-				if ((x >= 10) && (x <= 150))  // Button: Clear
-				{
-					waitForIt(10, 130, 150, 180);
-					stCurrent[0] = '\0';
-					stCurrentLen = 0;
-					myGLCD.setColor(0, 0, 0);
-					myGLCD.fillRect(0, 224, 319, 239);
-				}
-
-				if ((x >= 160) && (x <= 300))  // Button: Enter
-				{
-					waitForIt(160, 130, 300, 180);
-
-					laheta('R', atoi(stCurrent)); //Lähetyksen otsikko 'R' = rajoitus
-
-					while (Serial2.available() == 0)
-					{
-
-					}
-
-					while (Serial2.available() > 0)
-					{
-						if (Serial2.read() == 'K')
-						{
-							char otsitko = Serial2.read();
-							switch (otsitko)
-							{
-							case 'K':
-								return;
-								break;
-							case 'E':
-								myGLCD.print("Rajoitus ei ole sallituissa rajoissa", CENTER, 200);
-								break;
-							default:
-								break;
-							}
-						}
-
-					}
-
-
-					if (stCurrentLen>0)
-					{
-						for (x = 0; x<stCurrentLen + 1; x++)
-						{
-							stLast[x] = stCurrent[x];
-						}
-
-						stCurrent[0] = '\0';
-						stCurrentLen = 0;
-						myGLCD.setColor(0, 0, 0);
-						myGLCD.fillRect(0, 208, 319, 239);
-						myGLCD.setColor(0, 255, 0);
-						myGLCD.print(stLast, LEFT, 208);
-
-						return;
-					}
-					else
-					{
-						myGLCD.setColor(255, 0, 0);
-						myGLCD.print("BUFFER EMPTY", CENTER, 192);
-						delay(500);
-						myGLCD.print("            ", CENTER, 192);
-						delay(500);
-						myGLCD.print("BUFFER EMPTY", CENTER, 192);
-						delay(500);
-						myGLCD.print("            ", CENTER, 192);
-						myGLCD.setColor(0, 255, 0);
-					}
-				}
-			}
-		}
-	}
-}
-
-void nappaimisto()
-{
-	//Näytö tyhjennys
-	myGLCD.setFont(BigFont);
-	myGLCD.setBackColor(0, 0, 255);
-	myGLCD.fillScr(255, 255, 255);
-
-
-	// Draw the upper row of buttons
-	for (x = 0; x<5; x++)
-	{
-		myGLCD.setColor(0, 0, 255);
-		myGLCD.fillRoundRect(10 + (x * 60), 10, 60 + (x * 60), 60);
-		myGLCD.setColor(255, 255, 255);
-		myGLCD.drawRoundRect(10 + (x * 60), 10, 60 + (x * 60), 60);
-		myGLCD.printNumI(x + 1, 27 + (x * 60), 27);
-	}
-	// Draw the center row of buttons
-	for (x = 0; x<5; x++)
-	{
-		myGLCD.setColor(0, 0, 255);
-		myGLCD.fillRoundRect(10 + (x * 60), 70, 60 + (x * 60), 120);
-		myGLCD.setColor(255, 255, 255);
-		myGLCD.drawRoundRect(10 + (x * 60), 70, 60 + (x * 60), 120);
-		if (x<4)
-			myGLCD.printNumI(x + 6, 27 + (x * 60), 87);
-	}
-	myGLCD.print("0", 267, 87);
-	// Draw the lower row of buttons
-	myGLCD.setColor(0, 0, 255);
-	myGLCD.fillRoundRect(10, 130, 150, 180);
-	myGLCD.setColor(255, 255, 255);
-	myGLCD.drawRoundRect(10, 130, 150, 180);
-	myGLCD.print("Clear", 40, 147);
-	myGLCD.setColor(0, 0, 255);
-	myGLCD.fillRoundRect(160, 130, 300, 180);
-	myGLCD.setColor(255, 255, 255);
-	myGLCD.drawRoundRect(160, 130, 300, 180);
-	myGLCD.print("Enter", 190, 147);
-	myGLCD.setBackColor(0, 0, 0);
-}
-
-
-
-void updateStr(int val)
-{
-	if (stCurrentLen<20)
-	{
-		stCurrent[stCurrentLen] = val;
-		stCurrent[stCurrentLen + 1] = '\0';
-		stCurrentLen++;
-		myGLCD.setColor(0, 255, 0);
-		myGLCD.print(stCurrent, LEFT, 224);
-	}
-	else
-	{
-		myGLCD.setColor(255, 0, 0);
-		myGLCD.print("BUFFER FULL!", CENTER, 192);
-		delay(500);
-		myGLCD.print("            ", CENTER, 192);
-		delay(500);
-		myGLCD.print("BUFFER FULL!", CENTER, 192);
-		delay(500);
-		myGLCD.print("            ", CENTER, 192);
-		myGLCD.setColor(0, 255, 0);
-	}
-}
-
-
-
-// Draw a red frame while a button is touched
-void waitForIt(int x1, int y1, int x2, int y2)
-{
-	myGLCD.setColor(255, 0, 0);
-	myGLCD.drawRoundRect(x1, y1, x2, y2);
-	while (myTouch.dataAvailable())
-		myTouch.read();
-	myGLCD.setColor(255, 255, 255);
-	myGLCD.drawRoundRect(x1, y1, x2, y2);
-}
-*/
-
 
 //#define xPikselit 480
 //#define yPiksetlit 320
@@ -1136,7 +904,7 @@ void serialEvent2()
 {
 	//Tiedon haku
 	//digitalWrite(vastaanottoPin, LOW);
-	Serial.println(Serial2.available());
+	//Serial.println(Serial2.available());
 	if (Serial2.available() >= tauvutMaara)
 	{
 		while (Serial2.available() > 0)
@@ -1148,7 +916,7 @@ void serialEvent2()
 				{
 					byte boolVastaanOtto = Serial2.read();
 					rajoitus = Serial2.read();
-					vaihde[0] = Serial2.read();
+					vaihde = Serial2.read();
 					int rpmVali1 = Serial2.read();
 					int rpmVali2 = Serial2.read();
 					nopeus = Serial2.read();
@@ -1176,13 +944,12 @@ void serialEvent2()
 					//Serial.println(boolVastaanOtto, DEC);
 					//Serial.println(rajoitusPaalla, DEC);
 					uudetArvot = true;
+					printaaUudestaan = true;
 				}
 				
 			} while (Serial2.available() > 0);
 		}
 	}
-	digitalWrite(vastaanottoPin, LOW);
-	Serial.println(Serial2.available());
 }
 
 void laheta(char otsikko, int data)
