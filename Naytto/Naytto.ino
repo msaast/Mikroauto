@@ -110,6 +110,7 @@ int bensaVahissa = 20;
 const float pii = 3.14159;
 unsigned long loopViimeAika = 0;
 const int ruutuAika = 32; //ms noin 30 fps
+const int tauvutMaara = 12; //Tulevat tavut
 
 int minNopeus = 5, maxNopeus = 20;
 
@@ -133,6 +134,7 @@ int bensa = 0, bensaEdellinen = 0;
 bool vaihtoValo = false, vaihtoValo2 = false;
 bool liikaaKierroksia = false;
 bool jarruPohjassa = false;
+bool uudetArvot = true;
 
 float fps = 0;
 unsigned long fpsVanha = 0;
@@ -151,7 +153,7 @@ int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR);
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(57600);
+	Serial2.begin(460800);
 
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
@@ -182,8 +184,6 @@ void setup()
 	myTouch.InitTouch();
 	myTouch.setPrecision(PREC_MEDIUM);
 
-
-
 	mittarinTausta();
 }
 
@@ -192,7 +192,19 @@ void loop()
 	
 	if (ruutuAika < (millis() - loopViimeAika))
 	{
+		Serial.println("uusi");
 		loopViimeAika = millis();
+		//Tietojenhaku
+		digitalWrite(vastaanottoPin, HIGH);
+
+		//delayMicroseconds(5000);
+		//Viivett‰ ylˆs oloon
+		//digitalWrite(vastaanottoPin, LOW);
+	}
+
+	if (uudetArvot == true )
+	{
+		uudetArvot = false;
 		/*
 		fps++;
 
@@ -209,18 +221,11 @@ void loop()
 		tft.setTextColor(rpmRajat, mittarinTaustaVari);
 		tft.drawFloat(fps, 2, 200, 10, 4);
 
-		//Tietojenhaku
-		digitalWrite(vastaanottoPin, HIGH);
-
 		//RPM
-		rpmFunktio();
-		delayMicroseconds(500);
-		//Viivett‰ ylˆs oloon
-
-		digitalWrite(vastaanottoPin, LOW);
-
+		//rpmFunktio();
+	
 		//Bensa
-		bensaPiirto();
+		//bensaPiirto();
 
 		//Nopeus
 		if (nopeus != nopeusEdellinen || printaaUudestaan == true)
@@ -410,7 +415,7 @@ void loop()
 
 		}
 	}
-
+	
 	//Kosketus
 	if (myTouch.dataAvailable() == true && koskettu == false)
 	{
@@ -423,7 +428,8 @@ void loop()
 			rajoituksenSyotto();
 			mittarinTausta();
 			rpmEdellinen = 1;
-			printaaUudestaan = true;
+			//printaaUudestaan = true;
+			uudetArvot = true;
 		}
 		else if (xKord >= 0 && xKord <= 199 && yKord >= 160 && yKord <= 310)
 		{
@@ -446,7 +452,7 @@ void loop()
 		koskettu = false;
 	}
 	
-	delay(3);
+	//delay(3);
 }
 
 void mittarinTausta()
@@ -1069,7 +1075,7 @@ void rpmFunktio()
 	if (rpm > rpmEdellinen) //Piirt‰‰ uutta
 	{
 		int vari;
-		for (rpmVali = rpmEdellinen; rpmVali <= rpm; rpmVali = rpmVali + rpmInkrementti)
+		for (rpmVali = rpmEdellinen; rpmVali <= rpm; rpmVali+= rpmInkrementti)
 		{
 			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
 			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
@@ -1082,8 +1088,8 @@ void rpmFunktio()
 
 			if (rpmIndeksiUlko > pisteMaaraUlko || rpmIndeksiSisa > pisteMaaraSisa)
 			{
-				rpmIndeksiUlko = pisteMaaraUlko;
-				rpmIndeksiSisa = pisteMaaraSisa;
+				rpmIndeksiUlko = pisteMaaraUlko - 1;
+				rpmIndeksiSisa = pisteMaaraSisa - 1;
 			}
 
 			if (rpmIndeksiUlko < punarajaIndeksiUlko)
@@ -1096,13 +1102,13 @@ void rpmFunktio()
 			}
 			
 			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisa[0][rpmIndeksiSisa], kehaPisteetSisa[1][rpmIndeksiSisa], vari);
-			tft.drawLine(kehaPisteetUlkoPaksunnos[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos[1][rpmIndeksiSisa], vari);
+			//tft.drawLine(kehaPisteetUlkoPaksunnos[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos[1][rpmIndeksiSisa], vari);
 			//tft.drawLine(kehaPisteetUlkoPaksunnos2[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos2[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos2[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos2[1][rpmIndeksiSisa], vari);
 		}
 	}
 	else if (rpm < rpmEdellinen) //Pyyhkii vanhaa
 	{
-		for (rpmVali = rpmEdellinen; rpmVali >= rpm; rpmVali = rpmVali - rpmInkrementti)
+		for (rpmVali = rpmEdellinen; rpmVali >= rpm; rpmVali-= rpmInkrementti)
 		{
 			if (rpmVali < 0)
 			{
@@ -1118,7 +1124,7 @@ void rpmFunktio()
 			}
 
 			tft.drawLine(kehaPisteetUlko[0][rpmIndeksiUlko], kehaPisteetUlko[1][rpmIndeksiUlko], kehaPisteetSisa[0][rpmIndeksiSisa], kehaPisteetSisa[1][rpmIndeksiSisa], rpmTausta);
-			tft.drawLine(kehaPisteetUlkoPaksunnos[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos[1][rpmIndeksiSisa], rpmTausta);
+			//tft.drawLine(kehaPisteetUlkoPaksunnos[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos[1][rpmIndeksiSisa], rpmTausta);
 			//tft.drawLine(kehaPisteetUlkoPaksunnos2[0][rpmIndeksiUlko], kehaPisteetUlkoPaksunnos2[1][rpmIndeksiUlko], kehaPisteetSisaPaksunnos2[0][rpmIndeksiSisa], kehaPisteetSisaPaksunnos2[1][rpmIndeksiSisa], rpmTausta);
 		}
 	}
@@ -1129,46 +1135,54 @@ void rpmFunktio()
 void serialEvent2()
 {
 	//Tiedon haku
-	
-	while (Serial2.available() > 0)
+	//digitalWrite(vastaanottoPin, LOW);
+	Serial.println(Serial2.available());
+	if (Serial2.available() >= tauvutMaara)
 	{
-		if (Serial2.read() == 'A')
+		while (Serial2.available() > 0)
 		{
-			if (Serial2.available() >= 10)
+			Serial.println("nakki");
+			do
 			{
-				byte boolVastaanOtto = Serial2.read();
-				rajoitus = Serial2.read();
-				vaihde[0] = Serial2.read();
-				int rpmVali1 = Serial2.read();
-				int rpmVali2 = Serial2.read();
-				nopeus = Serial2.read();
-				int matkaVali1 = Serial2.read();
-				int matkaVali2 = Serial2.read();
-				int trippiVali1 = Serial2.read();
-				int trippiVali2 = Serial2.read();
-				bensa = Serial2.read();
+				if (Serial2.read() == 'A')
+				{
+					byte boolVastaanOtto = Serial2.read();
+					rajoitus = Serial2.read();
+					vaihde[0] = Serial2.read();
+					int rpmVali1 = Serial2.read();
+					int rpmVali2 = Serial2.read();
+					nopeus = Serial2.read();
+					int matkaVali1 = Serial2.read();
+					int matkaVali2 = Serial2.read();
+					int trippiVali1 = Serial2.read();
+					int trippiVali2 = Serial2.read();
+					bensa = Serial2.read();
 
-				rpm = (rpmVali1 << 8) | rpmVali2;
-				matka = (matkaVali1 << 8) | matkaVali2;
-				trippi = (trippiVali1 << 8) | trippiVali2;
-				/*
-				B00000001 = Rajoitus p‰‰ll‰/pois
-				B00000010 = Liikaa kierroksia vaihtoon
-				B00000100 = Jarru pohjassa
-				B00001000 =
-				B00010000 =
-				B00100000 =
-				B01000000 =
-				B10000000 =							*/
-				rajoitusPaalla = boolVastaanOtto & B00000001;
-				liikaaKierroksia = (boolVastaanOtto & B00000010) >> 1;
-				jarruPohjassa = (boolVastaanOtto & B00000100) >> 2;
-				//Serial.println(boolVastaanOtto, DEC);
-				//Serial.println(rajoitusPaalla, DEC);
-			}
+					rpm = (rpmVali1 << 8) | rpmVali2;
+					matka = (matkaVali1 << 8) | matkaVali2;
+					trippi = (trippiVali1 << 8) | trippiVali2;
+					/*
+					B00000001 = Rajoitus p‰‰ll‰/pois
+					B00000010 = Liikaa kierroksia vaihtoon
+					B00000100 = Jarru pohjassa
+					B00001000 =
+					B00010000 =
+					B00100000 =
+					B01000000 =
+					B10000000 =							*/
+					rajoitusPaalla = boolVastaanOtto & B00000001;
+					liikaaKierroksia = (boolVastaanOtto & B00000010) >> 1;
+					jarruPohjassa = (boolVastaanOtto & B00000100) >> 2;
+					//Serial.println(boolVastaanOtto, DEC);
+					//Serial.println(rajoitusPaalla, DEC);
+					uudetArvot = true;
+				}
+				
+			} while (Serial2.available() > 0);
 		}
 	}
-	//digitalWrite(vastaanottoPin, LOW);
+	digitalWrite(vastaanottoPin, LOW);
+	Serial.println(Serial2.available());
 }
 
 void laheta(char otsikko, int data)

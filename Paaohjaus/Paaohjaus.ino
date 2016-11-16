@@ -6,9 +6,6 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #include <EEPROM.h>
 
 
-//#define nakki 23
-//#define nakki 14
-
 //Funktioiden otsikot
 void nopeusInterruot();
 void rpmInterrupt();
@@ -91,8 +88,8 @@ const int punaraja = 8000;
 const int bensapalkkiKorkeus = 120;
 
 //Globaalit muuttujat
-volatile unsigned long nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
-volatile unsigned long rpmPulssit = 0; //Muuttuja johon lasketaan moottorilta tulleet pulssit.
+volatile uint8_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
+volatile uint8_t rpmPulssit = 0; //Muuttuja johon lasketaan moottorilta tulleet pulssit.
 volatile bool kuittaus = true; //Vaihteen vaihtajan kuittas muuttuja
 volatile bool rajoitus = false; //Kierrosten rajoittimen muuttuja
 bool vaihtoNappiYlhaalla = true; //
@@ -124,7 +121,7 @@ B00010000 =
 B00100000 =
 B01000000 =
 B10000000 =							*/
-int boolLahetysTavu = 0;
+uint8_t boolLahetysTavu = 0;
 
 int kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiavaja.
 int kierrosIndeksi = 0;
@@ -140,7 +137,7 @@ unsigned long fpsVanha = 0;
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(57600);
+	Serial2.begin(460800);
 
 	//Jos rajoitus kytkin on päällä, kun autoon kytketään virrat, niin laitetaan rajoitus päälle.
 	pinMode(rajoituksenKytkentaPin, INPUT);
@@ -175,6 +172,23 @@ void setup()
 	ICR5 = vilkkuNopeus;
 	OCR5B = 0;
 	OCR5C = 0;
+
+	//kello1 aikakeskeytykset
+	TCCR1A = 0;     // set entire TCCR1A register to 0
+	TCCR1B = 0;     // same for TCCR1B
+	TCNT1 = 0;
+	// set compare match register to desired timer count:
+	OCR1A = 3125; //Nopeus, 200ms
+	OCR0B = 156; //Kierrokset, noin 20ms
+	// turn on CTC mode:
+	TCCR1B |= (1 << WGM12);
+	// Set CS10 and CS12 bits for 1024 prescaler:
+	TCCR1B |= (1 << CS10);
+	TCCR1B |= (1 << CS12);
+
+	//Aika keskytykset päälle. A- ja B-kanava
+	TIMSK1 |= (1 << OCIE1A) | (1 << OCIE1B);
+
 
 	attachInterrupt(digitalPinToInterrupt(nopeusPin), nopeusInterruot, CHANGE); //Nopeus pulssit
 	attachInterrupt(digitalPinToInterrupt(rpmPin), rpmInterrupt, CHANGE); //Kierros pulssit
@@ -214,16 +228,16 @@ void loop()
 	{
 		nopeusLaskuri();
 		nopeudenLaskentaAikaVanha = millis();
-		Serial.println("nopeus");
-		Serial.println(nopeus);
+		//Serial.println("nopeus");
+		//Serial.println(nopeus);
 	}
 	//Aika mikä valein kierrosnopeus lasketaan.
 	if (millis() - rpmLaskentaAikaVanha >= rpmLaskentaAika)
 	{
 		rpmLaskuri();
 		rpmLaskentaAikaVanha = millis();
-		Serial.println("rpm");
-		Serial.println(rpm);
+		//Serial.println("rpm");
+		//Serial.println(rpm);
 	}
 	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
 	if ((rajoitus == true && nopeus > nopeusRajoitus) || (vaihde == 'R'))
@@ -525,6 +539,7 @@ void laheta()
 	}
 	*/
 	//Serial.println("laheta");
+	cli();//stop interrupts
 	int matkaVali = round(matka);
 	int trippiVali = round(trippi / 100) * 100; //Pyöristetään satojen tarkkuuteeen
 
@@ -541,6 +556,7 @@ void laheta()
 	Serial2.write(trippiVali | 0);//trippi
 	Serial2.write(bensa);//bensa
 						 //Serial.println(boolLahetysTavu, DEC);
+	sei();//allow interrupts
 }
 
 void vastaanota()
