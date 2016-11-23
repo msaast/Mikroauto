@@ -2,9 +2,9 @@
 Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös tai alas.
 
 */
+
 #include <Arduino.h>
 #include <EEPROM.h>
-
 
 //Funktioiden otsikot
 void nopeusInterruot();
@@ -25,11 +25,11 @@ const int virratPoisPin = 20;
 const int rajoituksenKytkentaPin = 21; //Kierrostenrajoittimen avainkytkimen pinni
 
 									   //PWM-pinnit (HUOM! Taajuuksia on vaihdettu,joten PWMmää on ohjattu suoraan rekisteriä manipuloimalla.)
-const int ylosVaihtoKaskyPin = 6; //Käskys moottorille vaihtaa ylös. kello4
-const int alasVaihtoKaskyPin = 7; //Käskys moottorille vaihtaa alas. kello4
+const int ylosVaihtoKaskyPin = 9; //Käskys moottorille vaihtaa ylös. kello2 OC2B 
+const int alasVaihtoKaskyPin = 10; //Käskys moottorille vaihtaa alas. kello2 OC2A 
 const int rajoitusPWMpin = 5; //kello3
-const int vilkkuOikeaPWMpin = 44; //kello5 duty=OCR5C
-const int vilkkuVasenPWMpin = 45; //kello5 duty=OCR5B
+const int vilkkuOikeaPWMpin = 6; //kello4 duty=OCR4A
+const int vilkkuVasenPWMpin = 7; //kello4 duty=OCR4B
 
 const int servoajuriKytkentaPin = 8; //Servon kytkentä pinni
 const int bensaSensoriPin = A0; //Bensa sensori potikka
@@ -137,7 +137,7 @@ unsigned long fpsVanha = 0;
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(250000);
+	Serial2.begin(9600);
 
 	//Jos rajoitus kytkin on päällä, kun autoon kytketään virrat, niin laitetaan rajoitus päälle.
 	pinMode(rajoituksenKytkentaPin, INPUT);
@@ -145,6 +145,8 @@ void setup()
 	{
 		rajoitus = true;
 	}
+
+	//bitSet(rekisteri, bitti);
 	//PWM
 	pinMode(ylosVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto käsky ylös
 	pinMode(alasVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto alas ylös
@@ -156,22 +158,44 @@ void setup()
 	analogWrite(rajoitusPWMpin, 1);
 	analogWrite(vilkkuOikeaPWMpin, 1);
 	analogWrite(vilkkuVasenPWMpin, 1);
+
+	
 	//Taajuudet
 	//kello3 30Hz PIN5
 	TCCR3B = (TCCR3B & B11111000) | B00000101;
 	OCR3A = 0;
+
+	//kello4 0,8Hz A PIN6 ja B PIN7
+	TCCR4B = (TCCR4B & B11100000) | B00011101;
+	TCCR4A = (TCCR4A & B11111100) | B00000010;
+	ICR4 = vilkkuNopeus;
+	OCR4A = 0;
+	OCR4B = 0;
+	
+
+	//kello2 60kHz B PIN9  ja A PIN10
+	//Fast PWM, nollaa OCR, asetaa pojalla.  0b10100011;
+	TCCR2A = (1 << COM2A1) | (1 << COM2B1) | (1 << WGM21) | (1 << WGM20);
+	/*
+	TCCR2A = 0; //TODO päätä joskus mitä haluat käyttää.
+	bitSet(TCCR2A, COM2A1);
+	bitSet(TCCR2A, COM2B1);
+	bitSet(TCCR2A, WGM21);
+	bitSet(TCCR2A, WGM20);
+	*/
+	// Esijakaja 1.  0b00000001;
+	TCCR2B = (1 << CS20); 
+	//bitSet(TCCR2B, CS20);
+	OCR2A = 125; 
+	OCR2B = 12;
+	/* vanha vaihemoottori
 	//kello4 80kHz PIN6 ja PIN7
 	TCCR4B = (TCCR4B & B11100000) | B00011001;
 	TCCR4A = (TCCR4A & B11111100) | B00000010;
 	ICR4 = 199;
 	OCR4A = 0; //
 	OCR4B = 0;
-	//kello5 0,8Hz PIN44 ja PIN45
-	TCCR5B = (TCCR5B & B11100000) | B00011101;
-	TCCR5A = (TCCR5A & B11111100) | B00000010;
-	ICR5 = vilkkuNopeus;
-	OCR5B = 0;
-	OCR5C = 0;
+	*/
 
 	//kello1 aikakeskeytykset
 	TCCR1A = 0;     // set entire TCCR1A register to 0
@@ -185,10 +209,13 @@ void setup()
 	// Set CS10 and CS12 bits for 1024 prescaler:
 	TCCR1B |= (1 << CS10);
 	TCCR1B |= (1 << CS12);
-
-	//Aika keskytykset päälle. A- ja B-kanava
+	//Aika keskeytykset päälle. A- ja B-kanava
 	TIMSK1 |= (1 << OCIE1A) | (1 << OCIE1B);
 
+	//kello5 ulkoinen laskuri
+	TCCR5A = 0;
+	TCCR5B = (1 << CS52) | (1 << CS51) | (1 << CS50); //0b00000111
+	TCCR5C = 0;
 
 	attachInterrupt(digitalPinToInterrupt(nopeusPin), nopeusInterruot, CHANGE); //Nopeus pulssit
 	attachInterrupt(digitalPinToInterrupt(rpmPin), rpmInterrupt, CHANGE); //Kierros pulssit
@@ -371,6 +398,18 @@ void loop()
 
 }
 
+
+ISR(TIMER1_COMPA_vect)
+{
+	Serial.println(TCNT5);
+	TCNT5 = 0;
+}
+
+ISR(TIMER1_COMPB_vect)
+{
+	//Serial.println(millis());
+}
+
 //Nopeus pulssien lasku interrupt-funktio
 void nopeusInterruot()
 {
@@ -516,11 +555,13 @@ void vaihtoKasky(int kaskyPin)
 	digitalWrite(servoajuriKytkentaPin, HIGH);
 	if (kaskyPin == 6)
 	{
-		OCR4A = 195; //6 PWM duty %, 98%=195
+		//OCR4A = 195; //6 PWM duty %, 98%=195
+		OCR2A = 250;
 	}
 	else
 	{
-		OCR4B = 195; //7 PWM duty %, 98%=195
+		//OCR4B = 195; //7 PWM duty %, 98%=195
+		OCR2B = 250;
 	}
 	vaihdetaanVanhaAika = millis();
 }

@@ -153,7 +153,7 @@ int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR);
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(250000);
+	Serial2.begin(9600);
 
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
