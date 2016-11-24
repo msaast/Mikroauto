@@ -88,15 +88,18 @@ const int punaraja = 8000;
 const int bensapalkkiKorkeus = 120;
 
 //Globaalit muuttujat
-volatile uint8_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
+volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
 volatile uint8_t rpmPulssit = 0; //Muuttuja johon lasketaan moottorilta tulleet pulssit.
+bool laskeNopeus = true;
+bool laskeKierrokset = true;
+
 volatile bool kuittaus = true; //Vaihteen vaihtajan kuittas muuttuja
 volatile bool rajoitus = false; //Kierrosten rajoittimen muuttuja
 bool vaihtoNappiYlhaalla = true; //
 bool liikaaKierroksia = false;
 unsigned long vaihdetaanVanhaAika = 0;
 unsigned long vaihtoNappiVanhaAika = 0; //
-unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
+volatile unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
 unsigned long rpmPullsiAika = 0; //Aika jolloin aloitettiin laskemaan kierros pulsseja.
 unsigned long rpmLaskentaAikaVanha = 0;
 unsigned long nopeudenLaskentaAikaVanha = 0;
@@ -130,9 +133,6 @@ int nopeusIndeksi = 0;
 
 double nopeusSumma = 0;
 double rpmSumma = 0;
-
-long fps = 0;
-unsigned long fpsVanha = 0;
 
 void setup()
 {
@@ -217,8 +217,8 @@ void setup()
 	TCCR5B = (1 << CS52) | (1 << CS51) | (1 << CS50); //0b00000111
 	TCCR5C = 0;
 
-	attachInterrupt(digitalPinToInterrupt(nopeusPin), nopeusInterruot, CHANGE); //Nopeus pulssit
-	attachInterrupt(digitalPinToInterrupt(rpmPin), rpmInterrupt, CHANGE); //Kierros pulssit
+	//attachInterrupt(digitalPinToInterrupt(nopeusPin), nopeusInterruot, CHANGE); //Nopeus pulssit
+	//attachInterrupt(digitalPinToInterrupt(rpmPin), rpmInterrupt, CHANGE); //Kierros pulssit
 	attachInterrupt(digitalPinToInterrupt(lahetaPin), laheta, RISING);
 	attachInterrupt(digitalPinToInterrupt(vastaanotaPin), vastaanota, FALLING);
 	//attachInterrupt(digitalPinToInterrupt(virratPoisPin), kirjoitaROM, FALLING);
@@ -247,24 +247,17 @@ void setup()
 
 void loop()
 {
-	fps = micros() - fpsVanha;
-	fpsVanha = micros();
-
-	//Aika mikä valein nopeus lasketaan.
-	if (millis() - nopeudenLaskentaAikaVanha >= nopeudenLaskentaAika)
+	//TODO Mieti tekiskö kolme eri taajuista aika keskeytystä joille jakais fiksusti tutkittavat asiat.
+	//Aikakeskeytus liputtaa.
+	if (laskeNopeus == true)
 	{
 		nopeusLaskuri();
-		nopeudenLaskentaAikaVanha = millis();
-		//Serial.println("nopeus");
-		//Serial.println(nopeus);
 	}
-	//Aika mikä valein kierrosnopeus lasketaan.
-	if (millis() - rpmLaskentaAikaVanha >= rpmLaskentaAika)
+	//Aikakeskeytus liputtaa.
+	if (laskeKierrokset = true)
 	{
 		rpmLaskuri();
 		rpmLaskentaAikaVanha = millis();
-		//Serial.println("rpm");
-		//Serial.println(rpm);
 	}
 	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
 	if ((rajoitus == true && nopeus > nopeusRajoitus) || (vaihde == 'R'))
@@ -398,16 +391,20 @@ void loop()
 
 }
 
-
+//Nopeus
 ISR(TIMER1_COMPA_vect)
 {
-	Serial.println(TCNT5);
+	cli();
+	nopeusPulssit = TCNT5;
 	TCNT5 = 0;
+	nopeusPulssitAika = millis();
+	laskeNopeus = true;
+	sei();
 }
-
+//Kierrokset
 ISR(TIMER1_COMPB_vect)
 {
-	//Serial.println(millis());
+	laskeKierrokset = true;
 }
 
 //Nopeus pulssien lasku interrupt-funktio
@@ -687,6 +684,7 @@ void kirjoitaROM()
 
 void valot()
 {
+	//TODO väärät rekisterit
 	//Vilkku oikea
 	if (digitalRead(vilkkuOikeaKytkinPin) == LOW)
 	{

@@ -941,8 +941,10 @@ void serialEvent2()
 					rajoitusPaalla = boolVastaanOtto & B00000001;
 					liikaaKierroksia = (boolVastaanOtto & B00000010) >> 1;
 					jarruPohjassa = (boolVastaanOtto & B00000100) >> 2;
-					//Serial.println(boolVastaanOtto, DEC);
-					//Serial.println(rajoitusPaalla, DEC);
+					Serial.println(rpm);
+					Serial.println(matka);
+					Serial.println(trippi);
+					Serial.println(rajoitusPaalla);
 					uudetArvot = true;
 					printaaUudestaan = true;
 				}
