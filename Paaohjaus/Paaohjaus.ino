@@ -22,7 +22,7 @@ const int nopeusPin = 2; //Pyörän pyörimis anturi
 const int vastaanotaPin = 18; //
 const int lahetaPin = 19;
 const int virratPoisPin = 20;
-const int rajoituksenKytkentaPin = 21; //Kierrostenrajoittimen avainkytkimen pinni
+const int rajoituksenKytkentaPin = 51; //Kierrostenrajoittimen avainkytkimen pinni
 
 									   //PWM-pinnit (HUOM! Taajuuksia on vaihdettu,joten PWMmää on ohjattu suoraan rekisteriä manipuloimalla.)
 const int ylosVaihtoKaskyPin = 9; //Käskys moottorille vaihtaa ylös. kello2 OC2B 
@@ -92,6 +92,7 @@ volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet
 volatile uint8_t rpmPulssit = 0; //Muuttuja johon lasketaan moottorilta tulleet pulssit.
 bool laskeNopeus = true;
 bool laskeKierrokset = true;
+bool laskeBensa = true;
 
 volatile bool kuittaus = true; //Vaihteen vaihtajan kuittas muuttuja
 volatile bool rajoitus = false; //Kierrosten rajoittimen muuttuja
@@ -202,15 +203,16 @@ void setup()
 	TCCR1B = 0;     // same for TCCR1B
 	TCNT1 = 0;
 	// set compare match register to desired timer count:
-	OCR1A = 3125; //Nopeus, 200ms
-	OCR0B = 156; //Kierrokset, noin 20ms
+	OCR1A = 3125; //Nopeus, vaide, valot, 200ms
+	OCR1B = 16; //Kierrokset, noin 1ms
+	OCR1C = 31250; //bensa, 2s
 	// turn on CTC mode:
 	TCCR1B |= (1 << WGM12);
 	// Set CS10 and CS12 bits for 1024 prescaler:
 	TCCR1B |= (1 << CS10);
 	TCCR1B |= (1 << CS12);
-	//Aika keskeytykset päälle. A- ja B-kanava
-	TIMSK1 |= (1 << OCIE1A) | (1 << OCIE1B);
+	//Aika keskeytykset päälle. A, B ja C-kanava
+	TIMSK1 |= (1 << OCIE1A) | (1 << OCIE1B) | (1 << OCIE1C);
 
 	//kello5 ulkoinen laskuri
 	TCCR5A = 0;
@@ -222,7 +224,7 @@ void setup()
 	attachInterrupt(digitalPinToInterrupt(lahetaPin), laheta, RISING);
 	attachInterrupt(digitalPinToInterrupt(vastaanotaPin), vastaanota, FALLING);
 	//attachInterrupt(digitalPinToInterrupt(virratPoisPin), kirjoitaROM, FALLING);
-	attachInterrupt(digitalPinToInterrupt(rajoituksenKytkentaPin), rajoitinKytkinInterrupt, CHANGE);
+	attachInterrupt(digitalPinToInterrupt(rajoituksenKytkentaPin), rajoitinKytkinInterrupt, CHANGE); //TODO Siirrä pinchange pinniin
 	pinMode(vaihtoKytkinAlasPin, INPUT_PULLUP); //Vaihde ylös kytkin
 	pinMode(vaihtoKytkinYlosPin, INPUT_PULLUP); //Vaihde alas kytkin
 	pinMode(jarruKytkinPin, INPUT_PULLUP); //Jaaruvalon kytkin
@@ -247,18 +249,27 @@ void setup()
 
 void loop()
 {
-	//TODO Mieti tekiskö kolme eri taajuista aika keskeytystä joille jakais fiksusti tutkittavat asiat.
-	//Aikakeskeytus liputtaa.
+	//TODO Mieti tekiskö kolme eri taajuista aikakeskeytystä joille jakais fiksusti tutkittavat asiat.
+	//Aikakeskeytys liputtaa.
 	if (laskeNopeus == true)
 	{
 		nopeusLaskuri();
+		valot();
+		//vaihde = vaihteet[(PIOC->PIO_PDSR ^ B11111) >> 1]; //Due
+		vaihde = vaihteet[(PINC ^ B11111) >> 1]; //Mega
 	}
 	//Aikakeskeytus liputtaa.
-	if (laskeKierrokset = true)
+	if (laskeKierrokset == true)
 	{
 		rpmLaskuri();
-		rpmLaskentaAikaVanha = millis();
 	}
+
+	if (laskeBensa == true)
+	{
+		
+		bensaTutkinta();
+	}
+
 	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
 	if ((rajoitus == true && nopeus > nopeusRajoitus) || (vaihde == 'R'))
 	{
@@ -285,12 +296,6 @@ void loop()
 		OCR3A = 0; //5 PWM duty %
 				   //analogWrite(rajoitusPWM, 0);
 	}
-
-	valot();
-	bensaTutkinta();
-
-	//vaihde = vaihteet[(PIOC->PIO_PDSR ^ B11111) >> 1]; //Due
-	vaihde = vaihteet[(PINC ^ B11111) >> 1]; //Mega
 
 	//Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylhäällä
 	if (millis() - vaihtoNappiVanhaAika > vaihtoNappiAika)
@@ -394,30 +399,18 @@ void loop()
 //Nopeus
 ISR(TIMER1_COMPA_vect)
 {
-	cli();
-	nopeusPulssit = TCNT5;
-	TCNT5 = 0;
-	nopeusPulssitAika = millis();
 	laskeNopeus = true;
-	sei();
 }
 //Kierrokset
 ISR(TIMER1_COMPB_vect)
 {
 	laskeKierrokset = true;
 }
-
-//Nopeus pulssien lasku interrupt-funktio
-void nopeusInterruot()
+ISR(TIMER1_COMPC_vect)
 {
-	nopeusPulssit++;
+	laskeBensa = true;
 }
 
-//Moottorin kierrosluvun lasku interrupt-funktio
-void rpmInterrupt()
-{
-	rpmPulssit++;
-}
 
 /*Rajoitin kytkimen interrupt-funktio
 Kun kytkimen tila muuttuu muutetaan "rajoitus" muuttujaa ja jos rajoitin laitetaan pois päältä poistetaan rajoitus.*/
