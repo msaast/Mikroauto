@@ -15,8 +15,7 @@ void vastaanota();
 
 //Pinnien paikat
 //interruptit
-const int rpmPin = 3; //CDI-pulssit
-const int nopeusPin = 2; //Pyörän pyörimis anturi
+
 const int vastaanotaPin = 18; //
 const int lahetaPin = 19;
 const int virratPoisPin = 20;
@@ -30,7 +29,7 @@ const int vilkkuOikeaPWMpin = 6; //kello4 duty=OCR4A
 const int vilkkuVasenPWMpin = 7; //kello4 duty=OCR4B
 
 const int servoajuriKytkentaPin = 8; //Servon kytkentä pinni
-const int bensaSensoriPin = A0; //Bensa sensori potikka
+const int bensaSensoriPin = 0; //Bensa sensori potikka (A0)
 
 								//Kytkimet
 const int vaihtoKytkinAlasPin = 22; //Ajajan vaihtokytkin alas
@@ -50,8 +49,9 @@ const int kolmonenPin = 34; //3
 const int pakkiPin = 33; //R
 						 //Vakioita
 const float pii = 3.14159; //Pii
-const int kierrosTaulukkoKOKO = 10;
-const int nopeusTaulukkoKOKO = 10;
+const uint8_t kierrosTaulukkoKOKO = 6;
+const uint8_t nopeusTaulukkoKOKO = 6;
+const uint8_t bensaTaulukkoKOKO = 20;
 
 /*
 Vaihteitte tutkinta rekisterin avulla.
@@ -68,20 +68,20 @@ const char vaihteet[] = "N12x3xxxR";
 
 //Asetuksia
 const float pyoraHalkaisija = 0.3; //Pyörän halkaisija metreinä.
-const int vaihtoRpm = 1800; //Moottorin kierrosnopeus, jonka alle ollessa saa vaihtaa vaihteen (1/min).
-const int pulssitPerKierrosNopeus = 200; //Montako pulssia tulee per kierros (nopeus).
-const int vaihtoNappiAika = 2000; //Aika minkä vaihto napin on oltava ylhäällä että voidaan uudestaa koittaa vaihtaan vaihetta.
-const int vaihtoAika = 1000; //Vaihtopulssin kesto
-const int nopeudenLaskentaAika = 200;
-const int bensaMittausAika = 10000;
-const int rajoitusAika = 50;
-const int vilkkuNopeus = 20000; //Alustavasti hyvä taajuus
-const int pakkiRajoitus = 5; //Pakin nopeusrajoitus
-const int minRajoitus = 5;
-const int maxRajoitus = 30;
-const int maxNayttoKierrokset = 11; //*1000
-const int punaraja = 8000;
-const int bensapalkkiKorkeus = 120;
+const uint16_t vaihtoRpm = 1800; //Moottorin kierrosnopeus, jonka alle ollessa saa vaihtaa vaihteen (1/min).
+const uint16_t pulssitPerKierrosNopeus = 200; //Montako pulssia tulee per kierros (nopeus).
+const uint16_t vaihtoNappiAika = 2000; //Aika minkä vaihto napin on oltava ylhäällä että voidaan uudestaa koittaa vaihtaan vaihetta.
+const uint16_t vaihtoAika = 1000; //Vaihtopulssin kesto
+const uint16_t nopeudenLaskentaAika = 200;
+const uint16_t bensaMittausAika = 3000; //3s
+const uint16_t rajoitusAika = 50;
+const uint16_t vilkkuNopeus = 20000; //Alustavasti hyvä taajuus
+const uint16_t pakkiRajoitus = 5; //Pakin nopeusrajoitus
+const uint8_t minRajoitus = 5;
+const uint8_t maxRajoitus = 30;
+const uint8_t maxNayttoKierrokset = 11; //*1000
+const uint16_t punaraja = 8000;
+const uint8_t bensapalkkiKorkeus = 120;
 
 //Globaalit muuttujat
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
@@ -90,21 +90,21 @@ bool laskeNopeus = true;
 bool laskeKierrokset = true;
 bool laskeBensa = true;
 
-volatile bool kuittaus = true; //Vaihteen vaihtajan kuittas muuttuja
-volatile bool rajoitus = false; //Kierrosten rajoittimen muuttuja
+bool kuittaus = true; //Vaihteen vaihtajan kuittas muuttuja
+bool rajoitus = false; //Kierrosten rajoittimen muuttuja
 bool vaihtoNappiYlhaalla = true; //
 bool liikaaKierroksia = false;
 unsigned long vaihdetaanVanhaAika = 0;
 unsigned long vaihtoNappiVanhaAika = 0; //
-volatile unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
+unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
 volatile uint16_t nopeudenLaskentaAikaLaskuri = 0;
 volatile uint16_t bensaMittausAikaLaskuri = 0;
 int vaihdeKytkinYlos = HIGH; //Vaihteen vaihto kytkin ylös tila
 int vaihdeKytkinAlas = HIGH; //Vaihteen vaihto kytkin alas tila
-int nopeus = 0; //Auton nopeus (km/h)
-int rpm = 0; //Moottorin kierrosnopeus (1/min)
-int nopeusRajoitus = 20;
-int bensa = 0;
+uint8_t nopeus = 0; //Auton nopeus (km/h)
+uint16_t rpm = 0; //Moottorin kierrosnopeus (1/min)
+uint8_t nopeusRajoitus = 20;
+uint8_t bensa = 0;
 double matka = 0;
 double trippi = 0;
 char vaihde = 'N'; //Päällä oleva vaihde
@@ -125,6 +125,7 @@ uint16_t kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaa
 uint8_t kierrosIndeksi = 0;
 uint8_t nopeusTaulukko[nopeusTaulukkoKOKO] = { 0 };
 uint8_t nopeusIndeksi = 0;
+uint8_t bensaTaulukko[bensaTaulukkoKOKO] = { 0 };
 
 double nopeusSumma = 0;
 double rpmSumma = 0;
@@ -133,6 +134,8 @@ void setup()
 {
 	Serial.begin(57600);
 	Serial2.begin(9600);
+
+	alkuarvojenLahetys();
 
 	//Jos rajoitus kytkin on päällä, kun autoon kytketään virrat, niin laitetaan rajoitus päälle.
 	pinMode(rajoituksenKytkentaPin, INPUT);
@@ -205,24 +208,29 @@ void setup()
 	TCCR5B = (1 << CS52) | (1 << CS51) | (1 << CS50); //0b00000111
 	TCCR5C = 0;
 
-	//attachInterrupt(digitalPinToInterrupt(nopeusPin), nopeusInterruot, CHANGE); //Nopeus pulssit
-	//attachInterrupt(digitalPinToInterrupt(rpmPin), rpmInterrupt, CHANGE); //Kierros pulssit
-	attachInterrupt(digitalPinToInterrupt(lahetaPin), laheta, RISING);
-	attachInterrupt(digitalPinToInterrupt(vastaanotaPin), vastaanota, FALLING);
+
+	//Ulkoiset interuptit
+	//attachInterrupt(digitalPinToInterrupt(lahetaPin), laheta, RISING);
+	//attachInterrupt(digitalPinToInterrupt(vastaanotaPin), vastaanota, FALLING);
 	//attachInterrupt(digitalPinToInterrupt(virratPoisPin), kirjoitaROM, FALLING);
-	attachInterrupt(digitalPinToInterrupt(rajoituksenKytkentaPin), rajoitinKytkinInterrupt, CHANGE); //TODO Siirrä pinchange pinniin
 	pinMode(vaihtoKytkinAlasPin, INPUT_PULLUP); //Vaihde ylös kytkin
 	pinMode(vaihtoKytkinYlosPin, INPUT_PULLUP); //Vaihde alas kytkin
 	pinMode(jarruKytkinPin, INPUT_PULLUP); //Jaaruvalon kytkin
 	pinMode(vilkkuOikeaKytkinPin, INPUT_PULLUP); //Vilkku oikealle kytkin
 	pinMode(vilkkuVasenKytkinPin, INPUT_PULLUP); //Villku vasemmalle kytkin
 
-	//Vaihteet
+	attachInterrupt(digitalPinToInterrupt(rajoituksenKytkentaPin), rajoitinKytkinInterrupt, CHANGE); //TODO Siirrä pinchange pinniin
+
+	//Vaihteet INPUT PULLUP
+	DDRC = 0b000000;
+	PORTC = 0b11111;
+	/*
 	pinMode(vapaaPin, INPUT_PULLUP); //N
 	pinMode(ykkonenPin, INPUT_PULLUP); //1
 	pinMode(kakkonenPin, INPUT_PULLUP); //2
 	pinMode(kolmonenPin, INPUT_PULLUP); //3
 	pinMode(pakkiPin, INPUT_PULLUP); //R
+	*/
 
 	pinMode(jarruvaloPin, OUTPUT); //Ulostulo jarruvalon releelle
 	pinMode(servoajuriKytkentaPin, OUTPUT); //Servon kytkentä
@@ -230,6 +238,8 @@ void setup()
 	DIDR0 = 0b11; //Anologi päälle A0, A1
 
 	lueROM();
+
+	bensaTutkinta();
 	matka = 324.3;
 	trippi = 1121.2;
 
@@ -251,7 +261,7 @@ void loop()
 	if (laskeKierrokset == true)
 	{
 		laskeKierrokset = false;
-		//rpmLaskuri();
+		rpmLaskuri();
 	}
 
 	if (bensaMittausAikaLaskuri >= bensaMittausAika)
@@ -386,7 +396,7 @@ void loop()
 
 }
 
-//Aiakkeskeytys noin 1ms
+//Aikakeskeytys noin 1ms
 ISR(TIMER1_COMPA_vect)
 {
 	rpmADC();
@@ -400,6 +410,25 @@ ISR(ADC_vect)
 {
 	rpmMuunnnos = ADC;
 	laskeKierrokset = true;
+}
+
+char sarjaVali;
+void serialEvent2()
+{
+	sarjaVali = Serial2.read();
+	if (sarjaVali == 'L')
+	{
+		laheta();
+	}
+	else if (sarjaVali == 'V')
+	{
+		Serial.println("Vastaant ota");
+		vastaanota();
+	}
+	else if (sarjaVali == 'a')
+	{
+		alkuarvojenLahetys();
+	}
 }
 
 /*Rajoitin kytkimen interrupt-funktio
@@ -445,7 +474,7 @@ void nopeusLaskuri()
 	matka = matka + (matkaVali / 1000); //Kilometrejä
 	trippi = trippi + matkaVali; //Metrejä
 
-								 
+								 /*
 								 Serial.print("pulssit: ");
 								 Serial.println(nopeusPulssit, DEC);
 								 Serial.print("aika: ");
@@ -453,8 +482,8 @@ void nopeusLaskuri()
 								 Serial.print("Vali: ");
 								 Serial.println(round(matkaVali), DEC);
 								 Serial.print("Nopeus: ");
-								 Serial.println(round(matkaVali / valiAika), DEC);
-								 
+								 Serial.println((round(matkaVali / valiAika)* 3.6), DEC);
+								 */
 
 	if (nopeusIndeksi == nopeusTaulukkoKOKO)//Indeksin ympäripyöritys
 	{
@@ -502,6 +531,7 @@ void rpmLaskuri()
 
 	//TODO tee oikea muunnos
 	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
+	//Serial.println(rpm);
 	kierrosIndeksi++;
 }
 
@@ -565,24 +595,18 @@ void vastaanota()
 {
 	char otsikko;
 	int param;
-
+	while (Serial2.available() == 0){} //Ootellaan että saadaan tavua
 	while (Serial2.available() > 0)
 	{
 		otsikko = Serial2.read();
 		switch (otsikko)
 		{
 		case 'R':
+			while (Serial2.available() == 0) {} //Ootellaan että saadaan tavua
 			param = Serial2.read();
 			if (param >= minRajoitus && param <= maxRajoitus)
 			{
 				nopeusRajoitus = param;
-				Serial2.write('K');
-				Serial2.write('O');
-			}
-			else
-			{
-				Serial2.write('K');
-				Serial2.write('V');
 			}
 			break;
 		case 'N':
@@ -683,8 +707,8 @@ void valot()
 
 void bensaTutkinta()
 {
-	int bensaVali = map(analogRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
-	bensa = bensaVali;
+	bensa = map(ADRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
+	
 	/*
 	if (nopeus == 0)
 	{
@@ -709,7 +733,7 @@ void alkuarvojenLahetys()
 		Serial2.write('A');
 		Serial2.write(minRajoitus);
 		Serial2.write(maxRajoitus);
-		Serial2.write(punaraja);
+		Serial2.write(uint8_t(punaraja / 100));
 		Serial2.write(maxNayttoKierrokset);
 
 		while (Serial2.available() == 0){}

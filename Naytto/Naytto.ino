@@ -109,14 +109,14 @@ int bensaVahissa = 20;
 //--------Sekalaita
 const float pii = 3.14159;
 unsigned long loopViimeAika = 0;
-const int ruutuAika = 32; //ms noin 30 fps
-const int tauvutMaara = 12; //Tulevat tavut
+const uint8_t ruutuAika = 32; //ms noin 30 fps
+const uint8_t tauvutMaara = 12; //Tulevat tavut
 
-int minNopeus = 5, maxNopeus = 20;
+uint8_t minRajoitus = 5, maxRajoitus = 20;
 
 //---------Joitain kosketukseen liityv‰‰
 
-int xKord = 0, yKord = 0; //Kosketus koordinaatit
+uint16_t xKord = 0, yKord = 0; //Kosketus koordinaatit
 bool printaaUudestaan = true;
 bool koskettu = false;
 const int trippiNollausAika = 750;
@@ -127,7 +127,7 @@ int nopeus = 8, nopeusEdellinen = 0;
 char vaihde = 'N', vaihdeEdellinen;
 int matka = 34, matkaEdellinen = 0;
 unsigned int trippi = 12200, trippiEdellinen = 0;
-int rajoitus = 10, rajoitusEdellinen = 0;
+uint8_t rajoitus = 10, rajoitusEdellinen = 0;
 bool rajoitusPaalla = false, rajoitusPaallaEdellinen = true;
 int bensa = 0, bensaEdellinen = 0;
 
@@ -155,6 +155,16 @@ void setup()
 	Serial.begin(57600);
 	Serial2.begin(9600);
 
+	// Setup the LCD
+	tft.begin();
+	tft.setRotation(3);
+	//myGLCD.InitLCD();
+	//Kosketus asetukset
+	myTouch.InitTouch();
+	myTouch.setPrecision(PREC_MEDIUM);
+
+	alkuarvojenHaku();
+
 	pinMode(vastaanottoPin, OUTPUT);
 	pinMode(lahetysPin, OUTPUT);
 
@@ -176,14 +186,6 @@ void setup()
 	punarajaIndeksiUlko = (pisteMaaraUlko * punaraja) / mittarinMaks;
 	punarajaIndeksiSisa = (pisteMaaraSisa * punaraja) / mittarinMaks;
 
-	// Setup the LCD
-	tft.begin();
-	tft.setRotation(3);
-	//myGLCD.InitLCD();
-	//Kosketus asetukset
-	myTouch.InitTouch();
-	myTouch.setPrecision(PREC_MEDIUM);
-
 	mittarinTausta();
 }
 
@@ -192,14 +194,10 @@ void loop()
 	
 	if (ruutuAika < (millis() - loopViimeAika))
 	{
-		Serial.println("uusi");
 		loopViimeAika = millis();
 		//Tietojenhaku
-		digitalWrite(vastaanottoPin, HIGH);
-
-		//delayMicroseconds(5000);
-		//Viivett‰ ylˆs oloon
-		//digitalWrite(vastaanottoPin, LOW);
+		//digitalWrite(vastaanottoPin, HIGH);
+		Serial2.write('L');
 	}
 
 	if (uudetArvot == true )
@@ -222,10 +220,10 @@ void loop()
 		tft.drawFloat(fps, 2, 200, 10, 4);
 
 		//RPM
-		//rpmFunktio();
+		rpmFunktio();
 	
 		//Bensa
-		//bensaPiirto();
+		bensaPiirto();
 		
 		//Nopeus
 		if (nopeus != nopeusEdellinen || printaaUudestaan == true)
@@ -452,7 +450,7 @@ void loop()
 	{
 		koskettu = false;
 	}
-	digitalWrite(vastaanottoPin, LOW);
+	//digitalWrite(vastaanottoPin, LOW);
 }
 
 void mittarinTausta()
@@ -537,7 +535,7 @@ void rajoituksenSyotto()
 {
 	bool ok = false;
 	const XYpaikka OkNappi = { 360, 260 };
-	const XYpaikka alku = {100, 160};
+	const XYpaikka alku = {50, 160};
 	const XYpaikka loppu = { xPikselit - alku.X, alku.Y};
 	XYpaikka saadinKeski;
 	saadinKeski.Y = alku.Y;
@@ -550,7 +548,8 @@ void rajoituksenSyotto()
 	const int OkYr = 40 / 2;
 	const int liukupituus = xPikselit - alku.X * 2;
 
-	saadinKeski.X = (liukupituus / float(maxNopeus - minNopeus)) * rajoitus;
+	saadinKeski.X = (liukupituus / float(maxRajoitus - minRajoitus)) * rajoitus - alku.X / 2;
+	
 	vanhaX = saadinKeski.X;
 
 	tft.fillScreen(mittarinTaustaVari);
@@ -558,7 +557,10 @@ void rajoituksenSyotto()
 	tft.fillRect(OkNappi.X - OkXr, OkNappi.Y - OkYr, OkXr * 2, OkYr * 2, rpmVari);
 
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
-	tft.drawFloat(1.3, 2, 200, 10, 4);
+
+	tft.drawNumber(rajoitus, 200, 20, 6);
+	tft.drawNumber(minRajoitus, 20, 20, 6);
+	tft.drawNumber(maxRajoitus, 400, 20, 6);
 
 	int laskuri = 0;
 	const int toleranssi = 40;
@@ -601,7 +603,7 @@ void rajoituksenSyotto()
 
 					Serial.println(saadinKeski.X);
 
-					tft.drawFloat(saadinKeski.X, 2, 200, 10, 4);
+					tft.drawFloat(((maxRajoitus - minRajoitus) * (saadinKeski.X + alku.X / 2)) / float(liukupituus), 2, 200, 20, 6);
 
 					if (saadinKeski.X != vanhaX)
 					{
@@ -630,6 +632,8 @@ void rajoituksenSyotto()
 			}
 			else if (onkoSuorakaiteessa(temp, OkNappi, OkXr, OkYr) == EXIT_SUCCESS)
 			{
+				uint8_t apuRajoitus = round(((maxRajoitus - minRajoitus) * (saadinKeski.X + alku.X / 2)) / float(liukupituus));
+				laheta('R', apuRajoitus);
 				return;
 			}
 		}
@@ -654,14 +658,15 @@ int keskiLaskin(int uusiPikseli, int liukupituus)
 
 void alkuarvojenHaku()
 {
+	Serial2.write('a');
 	while (Serial2.available() == 0){}
 
 	while (true)
 	{
 		if (Serial2.read() == 'A')
 		{
-			minNopeus = Serial2.read();
-			maxNopeus = Serial2.read();
+			minRajoitus = Serial2.read();
+			maxRajoitus = Serial2.read();
 			punaraja = Serial2.read();
 			jako = Serial2.read();
 			Serial2.write('O');
@@ -673,7 +678,12 @@ void alkuarvojenHaku()
 		}
 
 	}
+	punaraja*= 100;
 	mittarinMaks = jako * 1000;
+	Serial.println(minRajoitus);
+	Serial.println(maxRajoitus);
+	Serial.println(punaraja);
+	Serial.println(jako);
 }
 
 void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari)
@@ -909,7 +919,7 @@ void serialEvent2()
 	{
 		while (Serial2.available() > 0)
 		{
-			Serial.println("nakki");
+			//Serial.println("nakki");
 			do
 			{
 				if (Serial2.read() == 'A')
@@ -941,10 +951,10 @@ void serialEvent2()
 					rajoitusPaalla = boolVastaanOtto & B00000001;
 					liikaaKierroksia = (boolVastaanOtto & B00000010) >> 1;
 					jarruPohjassa = (boolVastaanOtto & B00000100) >> 2;
-					Serial.println(rpm);
-					Serial.println(matka);
-					Serial.println(trippi);
-					Serial.println(rajoitusPaalla);
+					//Serial.println(rpm);
+					//Serial.println(matka);
+					//Serial.println(trippi);
+					//Serial.println(rajoitusPaalla);
 					uudetArvot = true;
 					printaaUudestaan = true;
 				}
@@ -956,27 +966,28 @@ void serialEvent2()
 
 void laheta(char otsikko, int data)
 {
-	Serial.print("Lahetettava otsikko: ");
-	Serial.println(otsikko);
 	Serial.print("Lahetettava data: ");
 	Serial.println(data, DEC);
+	//digitalWrite(lahetysPin, HIGH);
 
-	digitalWrite(lahetysPin, HIGH);
-
-	Serial2.write(otsikko);
+	laheta(otsikko);
 	Serial2.write(data);
-	delay(80);
-	digitalWrite(lahetysPin, LOW);
+
+	//delay(80);
+	//digitalWrite(lahetysPin, LOW);
 
 }
 void laheta(char otsikko)
 {
 	Serial.print("Lahetettava otsikko: ");
 	Serial.println(otsikko);
-	digitalWrite(lahetysPin, HIGH);
+	//digitalWrite(lahetysPin, HIGH);
+
+	Serial2.write('V');
 	Serial2.write(otsikko);
-	delay(100);
-	digitalWrite(lahetysPin, LOW);
+
+	//delay(100);
+	//digitalWrite(lahetysPin, LOW);
 }
 
 void bensaPiirto()
