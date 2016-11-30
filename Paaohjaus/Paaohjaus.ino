@@ -7,8 +7,6 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #include <EEPROM.h>
 
 //Funktioiden otsikot
-void nopeusInterruot();
-void rpmInterrupt();
 void nopeusLaskuri();
 void rpmLaskuri();
 void vaihtoKasky(int kaskyPin);
@@ -52,7 +50,7 @@ const int kolmonenPin = 34; //3
 const int pakkiPin = 33; //R
 						 //Vakioita
 const float pii = 3.14159; //Pii
-const int kierrosTaulukkoKOKO = 20;
+const int kierrosTaulukkoKOKO = 10;
 const int nopeusTaulukkoKOKO = 10;
 
 /*
@@ -71,12 +69,10 @@ const char vaihteet[] = "N12x3xxxR";
 //Asetuksia
 const float pyoraHalkaisija = 0.3; //Pyörän halkaisija metreinä.
 const int vaihtoRpm = 1800; //Moottorin kierrosnopeus, jonka alle ollessa saa vaihtaa vaihteen (1/min).
-const int pulssitPerKierrosRpm = 2; //Montako pulssia tulee per kierros (RPM).
-const int pulssitPerKierrosNopeus = 20; //Montako pulssia tulee per kierros (nopeus).
+const int pulssitPerKierrosNopeus = 200; //Montako pulssia tulee per kierros (nopeus).
 const int vaihtoNappiAika = 2000; //Aika minkä vaihto napin on oltava ylhäällä että voidaan uudestaa koittaa vaihtaan vaihetta.
 const int vaihtoAika = 1000; //Vaihtopulssin kesto
 const int nopeudenLaskentaAika = 200;
-const int rpmLaskentaAika = 20;
 const int bensaMittausAika = 10000;
 const int rajoitusAika = 50;
 const int vilkkuNopeus = 20000; //Alustavasti hyvä taajuus
@@ -89,7 +85,7 @@ const int bensapalkkiKorkeus = 120;
 
 //Globaalit muuttujat
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
-volatile uint8_t rpmPulssit = 0; //Muuttuja johon lasketaan moottorilta tulleet pulssit.
+volatile uint16_t rpmMuunnnos = 0;
 bool laskeNopeus = true;
 bool laskeKierrokset = true;
 bool laskeBensa = true;
@@ -101,10 +97,8 @@ bool liikaaKierroksia = false;
 unsigned long vaihdetaanVanhaAika = 0;
 unsigned long vaihtoNappiVanhaAika = 0; //
 volatile unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
-unsigned long rpmPullsiAika = 0; //Aika jolloin aloitettiin laskemaan kierros pulsseja.
-unsigned long rpmLaskentaAikaVanha = 0;
-unsigned long nopeudenLaskentaAikaVanha = 0;
-unsigned long bensaMittausAikaVanha = 0;
+volatile uint16_t nopeudenLaskentaAikaLaskuri = 0;
+volatile uint16_t bensaMittausAikaLaskuri = 0;
 int vaihdeKytkinYlos = HIGH; //Vaihteen vaihto kytkin ylös tila
 int vaihdeKytkinAlas = HIGH; //Vaihteen vaihto kytkin alas tila
 int nopeus = 0; //Auton nopeus (km/h)
@@ -127,10 +121,10 @@ B01000000 =
 B10000000 =							*/
 uint8_t boolLahetysTavu = 0;
 
-int kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiavaja.
-int kierrosIndeksi = 0;
-int nopeusTaulukko[nopeusTaulukkoKOKO] = { 0 };
-int nopeusIndeksi = 0;
+uint16_t kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiavaja.
+uint8_t kierrosIndeksi = 0;
+uint8_t nopeusTaulukko[nopeusTaulukkoKOKO] = { 0 };
+uint8_t nopeusIndeksi = 0;
 
 double nopeusSumma = 0;
 double rpmSumma = 0;
@@ -165,6 +159,7 @@ void setup()
 	//kello3 30Hz PIN5
 	TCCR3B = (TCCR3B & B11111000) | B00000101;
 	OCR3A = 0;
+	//TIMSK3 |= (1 << TOIE3);
 
 	//kello4 0,8Hz A PIN6 ja B PIN7
 	TCCR4B = (TCCR4B & B11100000) | B00011101;
@@ -172,6 +167,7 @@ void setup()
 	ICR4 = vilkkuNopeus;
 	OCR4A = 0;
 	OCR4B = 0;
+	//TIMSK4 |= (1 << TOIE4);
 	
 
 	//kello2 60kHz B PIN9  ja A PIN10
@@ -189,30 +185,20 @@ void setup()
 	//bitSet(TCCR2B, CS20);
 	OCR2A = 125; 
 	OCR2B = 12;
-	/* vanha vaihemoottori
-	//kello4 80kHz PIN6 ja PIN7
-	TCCR4B = (TCCR4B & B11100000) | B00011001;
-	TCCR4A = (TCCR4A & B11111100) | B00000010;
-	ICR4 = 199;
-	OCR4A = 0; //
-	OCR4B = 0;
-	*/
+
 
 	//kello1 aikakeskeytykset
 	TCCR1A = 0;     // set entire TCCR1A register to 0
 	TCCR1B = 0;     // same for TCCR1B
 	TCNT1 = 0;
 	// set compare match register to desired timer count:
-	OCR1A = 3125; //Nopeus, vaide, valot, 200ms
-	OCR1B = 16; //Kierrokset, noin 1ms
-	OCR1C = 31250; //bensa, 2s
-	// turn on CTC mode:
+	OCR1A = 16; //kierros ja muut softalaskurit, 1ms
+	// CTC kattona maksimi
 	TCCR1B |= (1 << WGM12);
 	// Set CS10 and CS12 bits for 1024 prescaler:
-	TCCR1B |= (1 << CS10);
-	TCCR1B |= (1 << CS12);
+	TCCR1B |= (1 << CS10) | (1 << CS12);
 	//Aika keskeytykset päälle. A, B ja C-kanava
-	TIMSK1 |= (1 << OCIE1A) | (1 << OCIE1B) | (1 << OCIE1C);
+	TIMSK1 |= (1 << OCIE1A);
 
 	//kello5 ulkoinen laskuri
 	TCCR5A = 0;
@@ -241,6 +227,8 @@ void setup()
 	pinMode(jarruvaloPin, OUTPUT); //Ulostulo jarruvalon releelle
 	pinMode(servoajuriKytkentaPin, OUTPUT); //Servon kytkentä
 
+	DIDR0 = 0b11; //Anologi päälle A0, A1
+
 	lueROM();
 	matka = 324.3;
 	trippi = 1121.2;
@@ -251,8 +239,9 @@ void loop()
 {
 	//TODO Mieti tekiskö kolme eri taajuista aikakeskeytystä joille jakais fiksusti tutkittavat asiat.
 	//Aikakeskeytys liputtaa.
-	if (laskeNopeus == true)
+	if (nopeudenLaskentaAikaLaskuri >= nopeudenLaskentaAika)
 	{
+		nopeudenLaskentaAikaLaskuri = 0;
 		nopeusLaskuri();
 		valot();
 		//vaihde = vaihteet[(PIOC->PIO_PDSR ^ B11111) >> 1]; //Due
@@ -261,12 +250,13 @@ void loop()
 	//Aikakeskeytus liputtaa.
 	if (laskeKierrokset == true)
 	{
-		rpmLaskuri();
+		laskeKierrokset = false;
+		//rpmLaskuri();
 	}
 
-	if (laskeBensa == true)
+	if (bensaMittausAikaLaskuri >= bensaMittausAika)
 	{
-		
+		bensaMittausAikaLaskuri = 0;
 		bensaTutkinta();
 	}
 
@@ -396,21 +386,21 @@ void loop()
 
 }
 
-//Nopeus
+//Aiakkeskeytys noin 1ms
 ISR(TIMER1_COMPA_vect)
 {
-	laskeNopeus = true;
-}
-//Kierrokset
-ISR(TIMER1_COMPB_vect)
-{
-	laskeKierrokset = true;
-}
-ISR(TIMER1_COMPC_vect)
-{
-	laskeBensa = true;
+	rpmADC();
+	nopeudenLaskentaAikaLaskuri++;
+	bensaMittausAikaLaskuri++;
+
+	//Serial.println(TCNT5);
 }
 
+ISR(ADC_vect)
+{
+	rpmMuunnnos = ADC;
+	laskeKierrokset = true;
+}
 
 /*Rajoitin kytkimen interrupt-funktio
 Kun kytkimen tila muuttuu muutetaan "rajoitus" muuttujaa ja jos rajoitin laitetaan pois päältä poistetaan rajoitus.*/
@@ -447,6 +437,7 @@ void rajoitinKytkinInterrupt()
 Laskee globaaliin muuttajaan "nopeus" auton nopeuden kilometreinä tunnissa. */
 void nopeusLaskuri()
 {
+	nopeusPulssit = TCNT5;
 
 	double matkaVali = ((float)nopeusPulssit / (float)pulssitPerKierrosNopeus) * pii * pyoraHalkaisija; //Metrejä
 	double valiAika = (millis() - nopeusPulssitAika) / 1000.0;
@@ -454,7 +445,7 @@ void nopeusLaskuri()
 	matka = matka + (matkaVali / 1000); //Kilometrejä
 	trippi = trippi + matkaVali; //Metrejä
 
-								 /*
+								 
 								 Serial.print("pulssit: ");
 								 Serial.println(nopeusPulssit, DEC);
 								 Serial.print("aika: ");
@@ -463,21 +454,20 @@ void nopeusLaskuri()
 								 Serial.println(round(matkaVali), DEC);
 								 Serial.print("Nopeus: ");
 								 Serial.println(round(matkaVali / valiAika), DEC);
-								 */
+								 
 
 	if (nopeusIndeksi == nopeusTaulukkoKOKO)//Indeksin ympäripyöritys
 	{
 		nopeusIndeksi = 0;
 	}
-
-
 	nopeusSumma = nopeusSumma - nopeusTaulukko[nopeusIndeksi];
 
 	//Lasketaan auton nopeus (km/h). v=n*d*pii	n=1/t
 
 	nopeusTaulukko[nopeusIndeksi] = round(matkaVali / valiAika * 3.6);
+
 	nopeusPulssitAika = millis(); //Laitetetaan aika muistiin.
-	nopeusPulssit = 0; //Nollataan pulssi laskuri.
+	TCNT5 = 0; //Nollataan pulssi laskuri.
 
 	nopeusSumma = nopeusSumma + nopeusTaulukko[nopeusIndeksi];
 
@@ -493,23 +483,10 @@ void nopeusLaskuri()
 	nopeusIndeksi++;
 }
 
-/*Kierrosnopeus lasku funktio
-Laskee globaaliin muuttujaan "RPM" moottorin kierrosnopeuden (1/min).*/
+//Kierrosnopeus lasku funktio
+//Laskee globaaliin muuttujaan "RPM" moottorin kierrosnopeuden (1/min).
 void rpmLaskuri()
 {
-	/*
-	Serial.print("Kierrospulssit ");
-	Serial.println(rpmPulssit, DEC);
-	Serial.print("Kierrokset ");
-	Serial.println(rpm, DEC);
-	Serial.print("Aika ");
-	Serial.println(millis() - rpmPullsiAika, DEC);
-	Serial.print("Indeksi ");
-	Serial.println(kierrosIndeksi, DEC);
-	Serial.print("Taulukko rpm ");
-	Serial.println(kierrosLuku[kierrosIndeksi], DEC);
-	*/
-
 	if (kierrosIndeksi == kierrosTaulukkoKOKO)
 	{
 		kierrosIndeksi = 0;
@@ -519,25 +496,19 @@ void rpmLaskuri()
 
 	//Sijoitetaan arvot taulukkoon, josta lasketaan keskiarvo
 	//Lasketaan kierrosnopeus (1/min). n=1/t
-	kierrosLuku[kierrosIndeksi] = round((rpmPulssit / (float)pulssitPerKierrosRpm) / ((double)(millis() - rpmPullsiAika) / 1000) * 60);
-	rpmPullsiAika = millis();
-	rpmPulssit = 0;
-
+	kierrosLuku[kierrosIndeksi] = rpmMuunnnos;
+	
 	rpmSumma = rpmSumma + kierrosLuku[kierrosIndeksi];
 
-	/*
-	for (int i = 0; i < kierrosTaulukkoKOKO; i++)
-	{
-	rpmSumma = rpmSumma + kierrosLuku[i];
-	}
-	*/
-	rpm = round(rpmSumma / float(kierrosTaulukkoKOKO));
+	//TODO tee oikea muunnos
+	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
 	kierrosIndeksi++;
 }
 
 /*Vaihteen vaihto käsky fuktio. (Huom toimii nyt vain megalla pinneillä 6 ja 7, taajuuksia vaihdettu)
 Funktioon syötetään pinni, mitä halutaan käyttää ylhäällä. Eli pinniä mikä vastaa suuntaa mihin haluttan vaihtaa.
 Vaihteen vaihtaja suorittaa ylös- tai alasvaihto funktion riipuen siitä kumpaan pinniin saa käskyn.*/
+
 void vaihtoKasky(int kaskyPin)
 {
 	//analogWrite(kaskyPin, 250);
@@ -746,4 +717,18 @@ void alkuarvojenLahetys()
 		kuittaus = Serial2.read();
 	}
 
+}
+
+void rpmADC()
+{
+	ADMUX = (0b01000000 | 1); //5V pin referenssinä ja luku 1
+	ADCSRA = 0b11001110; //Ennabloi AD, ajoon ja interupti. Prescailer 64	
+}
+
+int ADRead(uint8_t pin)
+{
+	ADMUX = (0b01000000 | pin); //5V pin referenssinä
+	ADCSRA = 0b11000110; //Ennabloi AD ja laita päälle. Ei intteruptia, scaler 64
+	while ((ADCSRA & 0b01000000) != 0) {} // Ootetaan muunnos loppuun
+	return ADC; //Palautetaan muunnettu luku
 }
