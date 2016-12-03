@@ -56,7 +56,7 @@ const uint16_t vaihtoRpm = 1800; //Moottorin kierrosnopeus, jonka alle ollessa s
 const uint16_t pulssitPerKierrosNopeus = 20; //Montako pulssia tulee per kierros (nopeus).
 const uint16_t vaihtoNappiAika = 2000; //Aika mink‰ vaihto napin on oltava ylh‰‰ll‰ ett‰ voidaan uudestaa koittaa vaihtaan vaihetta.
 const uint16_t vaihtoAika = 1000; //Vaihtopulssin kesto
-const uint16_t nopeudenLaskentaAika = 200;
+const uint16_t nopeudenLaskentaAika = 100;
 const uint16_t bensaMittausAika = 3000; //3s
 const uint16_t rajoitusAika = 50;
 const uint16_t vilkkuNopeus = 20000; //Alustavasti hyv‰ taajuus
@@ -67,6 +67,11 @@ const uint8_t maxRajoitus = 30;
 const uint8_t maxNayttoKierrokset = 11; //*1000
 const uint16_t punaraja = 8000;
 const uint8_t bensapalkkiKorkeus = 120;
+
+const uint8_t vaihtoRaja1_2 = 10; //kh/h
+const uint8_t vaihtoRaja2_3 = 20; //kh/h
+const uint8_t vaihtoRaja3_2 = 50; //kh/h
+const uint8_t vaihtoRaja2_1 = 30; //kh/h
 
 //Globaalit muuttujat
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyˆr‰lt‰ tulleet pulssit.
@@ -96,7 +101,7 @@ uint8_t bensa = 0;
 double matka = 0;
 double trippi = 0;
 char vaihde = 'N'; //P‰‰ll‰ oleva vaihde
-bool jarruvalo = true;
+bool jarruPohjassa = false;
 
 /*
 B00000001 = Rajoitus p‰‰ll‰/pois
@@ -114,9 +119,11 @@ uint8_t kierrosIndeksi = 0;
 uint8_t nopeusTaulukko[nopeusTaulukkoKOKO] = { 0 };
 uint8_t nopeusIndeksi = 0;
 uint8_t bensaTaulukko[bensaTaulukkoKOKO] = { 0 };
+uint8_t bensaIndeksi = 0;
 
 double nopeusSumma = 0;
 double rpmSumma = 0;
+double bensaSumma = 0;
 
 void setup()
 {
@@ -212,11 +219,17 @@ void setup()
 
 	DIDR0 = 0b11; //Anologi p‰‰lle A0, A1
 
-	asm("jmp 0x0014"); //Rajoitus interupt vektori
-	//PCINT1;
+	rajoitusPaalla = (PINB & 1); //Mik‰ on rajoituskykimen tila
+	bitWrite(boolLahetysTavu, 0, rajoitusPaalla);
+
 	lueROM();
 
-	bensaTutkinta();
+	//T‰ytet‰‰n bensa taulukko
+	for (uint8_t i = 0; i < bensaTaulukkoKOKO; i++)
+	{
+		bensaTutkinta();
+	}
+
 	matka = 32413.3;
 	trippi = 113121.2;
 }
@@ -246,82 +259,82 @@ void loop()
 	//Jos nopeusrajoitus on p‰‰ll‰ rajoitetaan nopeutta.
 	rajoitus();
 
-	//Tutkitaan kuinka kauan on vaihteenvaihtomoottorille annettu PWMm‰‰.
-	if (millis() - vaihdetaanVanhaAika > vaihtoAika)
+	if (vaihtaaVaihdetta == true)
 	{
-		OCR2A = 0; //PIN10, PB4
-		OCR2B = 0; //PIN9, PH6
-		PORTH = PINH ^ (1 << PH5); //PIN8
-		vaihtaaVaihdetta = false;
+		//Tutkitaan kuinka kauan on vaihteenvaihtomoottorille annettu PWMm‰‰.
+		if (millis() - vaihdetaanVanhaAika > vaihtoAika)
+		{
+			OCR2A = 0; //PIN10, PB4
+			OCR2B = 0; //PIN9, PH6
+			PORTH = PINH ^ (1 << PH5); //PIN8
+			vaihtaaVaihdetta = false;
+		}
 	}
 
 	//Vaihteen vaihtoon menn‰‰, jos jompaa kumpaa vaihto nappia on painettu .
 	if (vaihdeKytkinAlas == true || vaihdeKytkinYlos == true)//Aika rajoitus
 	{
-		//Tutkitaan onko vaihtokytkin ollut tarpeeksi kauan ylh‰‰ll‰
-		if (millis() - vaihtoNappiVanhaAika > vaihtoNappiAika)
+		//Tutkitaan vaihdetaanko vaihdetta ja onko vaihtokytkin ollut tarpeeksi kauan ylh‰‰ll‰.
+		if ((vaihtaaVaihdetta == false) && ((millis() - vaihtoNappiVanhaAika) > vaihtoNappiAika))
 		{
-			vaihtoNappiYlhaalla = true;
-		}
-
-		if (vaihtaaVaihdetta == false && vaihtoNappiYlhaalla == true)
-		{
-			vaihtoNappiYlhaalla = false;
-
 			//TODO  Mieti vaihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
+			//Mietin yhden kerran ja tulin siihen tuylokseen, ett‰ ei v‰tt‰m‰tt‰ tarvii.
+			//Kovassa vauhdissa liian pienelle vahtaminen on varmaan suurin ongelma ja se nyt ei ole kovin vaarallista.
 			if (rpm < vaihtoRpm) //P‰‰st‰‰n vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
 			{
-				vaihtaaVaihdetta = true; //Kirjotetaan vaihteen vaihto kuittas ep‰todeksi, koska ruvetaan vaihtamaan vaihdetta.
+				vaihtaaVaihdetta = true;
 				bitWrite(boolLahetysTavu, 1, 0);
 
 				switch (vaihde)
 				{
-				case 'R': //Pakilta annetaan vaihtaa vain ylˆs p‰in.
-					if (vaihdeKytkinYlos == true)
-					{
-						vaihtoKasky(ylosVaihtoKaskyPin);
-					}
-					break;
-				case 'N': //Vappaalta voi vaihtaa kumpaankin suuntaa, mutta jarru pit‰‰ olla painettuna.
+					case 'R': //Pakilta annetaan vaihtaa vain ylˆs p‰in.
+						if (vaihdeKytkinYlos == true)
+						{
+							vaihtoKasky(ylosVaihtoKaskyPin);
+						}
+						break;
+					case 'N': //Vappaalta voi vaihtaa kumpaankin suuntaa, mutta jarru pit‰‰ olla painettuna.
 
-					if (vaihdeKytkinAlas == true && jarruvalo == true)
-					{
-						vaihtoKasky(alasVaihtoKaskyPin);
-					}
-					else if (vaihdeKytkinYlos == true && jarruvalo == true)
-					{
-						vaihtoKasky(ylosVaihtoKaskyPin);
-					}
-					break;
-				case '1': //Ykkˆselt‰ voi vaihtaa kumpaankin suuntaa.
-					if (vaihdeKytkinAlas == true)
-					{
-						vaihtoKasky(alasVaihtoKaskyPin);
-					}
-					else if (vaihdeKytkinYlos == true)
-					{
-						vaihtoKasky(ylosVaihtoKaskyPin);
-					}
-					break;
-				case '2': //Kakkoselta voi vaihtaa kumpaankin suuntaa.
-					if (vaihdeKytkinAlas == true)
-					{
-						vaihtoKasky(alasVaihtoKaskyPin);
-					}
-					else if (vaihdeKytkinYlos == true)
-					{
-						vaihtoKasky(ylosVaihtoKaskyPin);
-					}
-					break;
-				case '3': //Kolmeoselta voi vaihtaa vain alas p‰in.
-					if (vaihdeKytkinAlas == true)
-					{
-						vaihtoKasky(alasVaihtoKaskyPin);
-					}
-					break;
-				default:
-					break;
+						if (vaihdeKytkinAlas == true && jarruPohjassa == true)
+						{
+							vaihtoKasky(alasVaihtoKaskyPin);
+						}
+						else if (vaihdeKytkinYlos == true && jarruPohjassa == true)
+						{
+							vaihtoKasky(ylosVaihtoKaskyPin);
+						}
+						break;
+					case '1': //Ykkˆselt‰ voi vaihtaa kumpaankin suuntaa.
+						if (vaihdeKytkinAlas == true)
+						{
+							vaihtoKasky(alasVaihtoKaskyPin);
+						}
+						else if (vaihdeKytkinYlos == true)
+						{
+							vaihtoKasky(ylosVaihtoKaskyPin);
+						}
+						break;
+					case '2': //Kakkoselta voi vaihtaa kumpaankin suuntaa.
+						if (vaihdeKytkinAlas == true)
+						{
+							vaihtoKasky(alasVaihtoKaskyPin);
+						}
+						else if (vaihdeKytkinYlos == true)
+						{
+							vaihtoKasky(ylosVaihtoKaskyPin);
+						}
+						break;
+					case '3': //Kolmeoselta voi vaihtaa vain alas p‰in.
+						if (vaihdeKytkinAlas == true)
+						{
+							vaihtoKasky(alasVaihtoKaskyPin);
+						}
+						break;
+					default:
+						break;
 				}
+				vaihdeKytkinAlas == false;
+				vaihdeKytkinYlos == false;
 			}
 			else
 			{
@@ -329,10 +342,7 @@ void loop()
 												 //Kaasu ylˆs!!
 			}
 		}
-
-		vaihtoNappiYlhaalla = false;
 	}
-
 }
 
 //Aikakeskeytys noin 1ms
@@ -425,9 +435,9 @@ ISR(PCINT0_vect)
 ISR(PCINT1_vect)
 {
 	//jarruvalo = (PINJ & (1 << PJ0)) >> PJ0;
-	jarruvalo = PINJ & 1;
-	PORTL = PINL | (0xFF & (jarruvalo << PL3));
-	bitWrite(boolLahetysTavu, 2, jarruvalo); ///Kirjoitetaan l‰hetystavuun, ett‰ jarrun tila.
+	jarruPohjassa = PINJ & 1;
+	PORTL = PINL | (0xFF & (jarruPohjassa << PL3));
+	bitWrite(boolLahetysTavu, 2, jarruPohjassa); ///Kirjoitetaan l‰hetystavuun, ett‰ jarrun tila.
 }
 
 char sarjaVali;
@@ -531,8 +541,6 @@ void vaihtoKasky(uint8_t kaskyPin)
 	{
 		OCR2B = 250; //PIN9, PH6
 	}
-	vaihdeKytkinAlas == false;
-	vaihdeKytkinYlos == false;
 	vaihdetaanVanhaAika = millis();
 }
 
@@ -647,21 +655,19 @@ void valot()
 
 void bensaTutkinta()
 {
-	bensa = map(ADRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
-	
-	/*
-	if (nopeus == 0)
+	if (bensaIndeksi == bensaTaulukkoKOKO)
 	{
-		bensa = bensaVali;
+		bensaIndeksi = 0;
 	}
-	else
-	{
-		if (bensaVali > bensa + 1)
-		{
 
-		}
-	}
-	*/
+	bensaSumma = bensaSumma - bensaTaulukko[bensaIndeksi];
+
+	bensaTaulukko[bensaIndeksi] = map(ADRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
+
+	bensaSumma = bensaSumma + bensaTaulukko[bensaIndeksi];
+
+	bensa = round((bensaSumma / float(bensaTaulukkoKOKO)));
+	bensaIndeksi++;
 }
 
 void alkuarvojenLahetys()
