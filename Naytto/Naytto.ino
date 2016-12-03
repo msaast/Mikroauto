@@ -643,12 +643,6 @@ void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari)
 	/* second half */
 	for (x = a, y = 0, sigma = 2 * a2 + b2*(1 - 2 * a); a2*y <= b2*x; y++)
 	{
-		//delay(1);
-
-		//myGLCD.drawPixel(xc + x, yc + y);
-		//myGLCD.drawPixel(xc - x, yc + y);
-		//myGLCD.drawPixel(xc + x, yc - y);
-		//myGLCD.drawPixel(xKeski - x, yKeski - y);
 		tft.drawPixel(xKeski - x, yKeski - y, vari);
 
 		if (sigma >= 0)
