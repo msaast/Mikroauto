@@ -77,11 +77,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Free_Fonts.h" />
+    <ClInclude Include="Suorakaide.h" />
+    <ClInclude Include="XYpaikka.h" />
     <ClInclude Include="__vm\.Naytto.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aareton.c" />
     <ClCompile Include="bensaIkoni.c" />
+    <ClCompile Include="Suorakaide.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -128,12 +128,13 @@ double bensaSumma = 0;
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(9600);
+	Serial2.begin(115200);
 
 	alkuarvojenLahetys();
 
 	//bitSet(rekisteri, bitti);
 	//PWM
+	//TODO katon nämä joskus vähän siistimmiksi.
 	pinMode(ylosVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto käsky ylös
 	pinMode(alasVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto alas ylös
 	pinMode(rajoitusPWMpin, OUTPUT); //Nopeusrajoitus

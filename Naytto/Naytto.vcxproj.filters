@@ -24,12 +24,21 @@
     <ClInclude Include="Free_Fonts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Suorakaide.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XYpaikka.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="aareton.c">
       <Filter>Resource Files</Filter>
     </ClCompile>
     <ClCompile Include="bensaIkoni.c">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Suorakaide.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
   </ItemGroup>

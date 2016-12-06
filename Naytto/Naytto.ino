@@ -1,25 +1,15 @@
-struct XYpaikka
-{
-	int X;
-	int Y;
-};
 
-
-//#include <UTFT.h>
+#include "XYpaikka.h"
+#include "Suorakaide.h"
 #include <User_Setup.h>
 #include <TFT_HX8357_Due.h>
 #include "Free_Fonts.h" 
-
-TFT_HX8357_Due tft = TFT_HX8357_Due();
 
 #include <UTouch.h>
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
-/*
-#define HX8357_TFTWIDTH  320
-#define HX8357_TFTHEIGHT 480
-*/
+TFT_HX8357_Due tft = TFT_HX8357_Due();
 
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
@@ -29,19 +19,9 @@ extern unsigned short bensaIkoni[];
 // ----------------------
 // Set the pins to the correct ones for your development board
 // -----------------------------------------------------------
-// Standard Arduino Uno/2009 Shield            : 15,10,14, 9, 8
 // Standard Arduino Mega/Due shield            :  6, 5, 4, 3, 2
-// CTE TFT LCD/SD Shield for Arduino Due       :  6, 5, 4, 3, 2
-// Teensy 3.x TFT Test Board                   : 26,31,27,28,29
-// ElecHouse TFT LCD/SD Shield for Arduino Due : 25,26,27,29,30
-//
-UTouch  myTouch(6, 5, 4, 3, 2);
 
-//---------------Pinnit		Käytettävät 8, 9, 10, 11. Sarja 14, 15 
-const int vastaanottoPin = 8;
-const int lahetysPin = 9;
-//const int Serial2TX = 14;
-//const int serial4RX = 15;
+UTouch  myTouch(6, 5, 4, 3, 2);
 
 
 #define xPikselit 480
@@ -143,16 +123,15 @@ int kierto = 0;
 //----------Funktioiden otsikot
 int pisteetTaulukkoon(int xKeski, int yKeski, int a, int b, short kehaPisteet[RIVIT][MAXPISTEET]);
 void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara);
-void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET], int pisteMaaraUlko, int pisteMaaraSisa);
-void mittarinTausta();
+//void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET], int pisteMaaraUlko, int pisteMaaraSisa);
+
 //void rajoituksenSyotto();
 void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari);
-int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR);
 
 void setup()
 {
 	Serial.begin(57600);
-	Serial2.begin(9600);
+	Serial2.begin(115200);
 
 	// Setup the LCD
 	tft.begin();
@@ -163,8 +142,6 @@ void setup()
 
 	alkuarvojenHaku();
 
-	pinMode(vastaanottoPin, OUTPUT);
-	pinMode(lahetysPin, OUTPUT);
 
 	//RPM-laskuja
 	pisteMaaraUlko = pisteetTaulukkoon(xK, yK, ulkoA, ulkuB, kehaPisteetUlko);
@@ -201,10 +178,12 @@ void loop()
 	{
 		uudetArvot = false;
 
+		/*
 		fps = 1000 / (millis() - fpsVanha);
 		fpsVanha = millis();
 		tft.setTextColor(rpmRajat, mittarinTaustaVari);
-		tft.drawFloat(fps, 2, 200, 10, 4);
+		tft.drawFloat(fps, 1, 200, 10, 4);
+		*/
 
 		//RPM
 		rpmFunktio();
@@ -233,7 +212,7 @@ void loop()
 			{
 				if (nopeusEdellinen > 9)
 				{
-					tft.fillRect(260, 160, xPikselit - 268, yPiksetlit - 160, mittarinTaustaVari);
+					tft.fillRect(261, 161, xPikselit - 261, yPiksetlit - 161, mittarinTaustaVari);
 
 				}
 				tft.setTextColor(rpmRajat, mittarinTaustaVari);
@@ -438,7 +417,7 @@ void mittarinTausta()
 	tft.drawString("LIMIT", 180, 220 - 20, limitFontti);
 
 	//Nopeus yksikkö
-	tft.drawString("km/h", 190, 220 + 70, kmhFontti);
+	tft.drawString("km/h", 182, 220 + 70, kmhFontti);
 
 	//RPM yksikkö
 	tft.drawString("RPM X1000", 5, 303, rpmYksikko);
@@ -451,113 +430,136 @@ void mittarinTausta()
 
 	//Bensammittari
 	tft.drawRect(bensapalkkiXlahto - 2,  bensapalkkiYlahto - bensapalkkiKorkeus - 1, bensapalkkiLeveys + 4, bensapalkkiKorkeus + 4, rpmRajat);
-	drawIcon(bensaIkoni, bensapalkkiXlahto + bensapalkkiLeveys + 6, bensapalkkiYlahto - 40, 30, 33);
+	drawIcon(bensaIkoni, bensapalkkiXlahto, bensapalkkiYlahto + 8, 30, 33);
 }
 
 //#define xPikselit 480
 //#define yPiksetlit 320
 void rajoituksenSyotto()
 {
-	bool ok = false;
-	const XYpaikka OkNappi = { 360, 260 };
-	const XYpaikka alku = {50, 160};
-	const XYpaikka loppu = { xPikselit - alku.X, alku.Y};
-	XYpaikka saadinKeski;
-	saadinKeski.Y = alku.Y;
+
+	const XYpaikka alku = { 80, 160 };
+	const XYpaikka loppu = { xPikselit - alku.X, alku.Y };
+	Suorakaide saadin = { { 0, alku.Y }, 130 , 130 };
+	Suorakaide OKNappi = { { xPikselit / 2, 276 }, 250, 70 };
+
 	int vanhaX = 0, vanhaX2;
 	XYpaikka temp;
+	int laskuri = 0;
+	int erotus;
+	const uint8_t toleranssi = 40;
 
-	const int saadinXr = 80 / 2;
-	const int saadinYr = 140 / 2;
-	const int OkXr = 40 / 2;
-	const int OkYr = 40 / 2;
 	const int liukupituus = xPikselit - alku.X * 2;
 
-	saadinKeski.X = (liukupituus / float(maxRajoitus - minRajoitus)) * rajoitus - alku.X / 2;
+	//saadinKeski.X = (liukupituus / float(maxRajoitus - minRajoitus)) * rajoitus - alku.X / 2;
 	
-	vanhaX = saadinKeski.X;
+	saadin.asetaKpX(map(rajoitus, minRajoitus, maxRajoitus, alku.X, loppu.X));
+
+	vanhaX = saadin.keskiX();
 
 	tft.fillScreen(mittarinTaustaVari);
-	tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, rpmVari);
-	tft.fillRect(OkNappi.X - OkXr, OkNappi.Y - OkYr, OkXr * 2, OkYr * 2, rpmVari);
+
+	tft.fillRect(saadin.vasenX(), saadin.ylaY(), saadin.leveys(), saadin.korkeus(), rpmVari);
+	tft.fillRect(OKNappi.vasenX(), OKNappi.ylaY(), OKNappi.leveys(), OKNappi.korkeus(), vapaaVari);
+	for (size_t i = 0; i < 2; i++)
+	{
+		tft.drawRect(alku.X - saadin.leveysR() - 2 - i, saadin.ylaY() - 2 - i, liukupituus + saadin.leveys() + 4 + i, saadin.korkeus() + 4 + 1, rpmRajat);
+	}
+	tft.drawRect(alku.X - saadin.leveysR() - 2, saadin.ylaY() - 2 , liukupituus + saadin.leveys() + 4, saadin.korkeus() + 4, rpmRajat);
+
+	tft.setTextColor(rpmRajat, mittarinTaustaVari);
+	tft.drawCentreString("Set Speed Limit km/h", xPikselit / 2, 10, 4);
+	tft.drawNumber(rajoitus, 200, 40, 6);
+	tft.drawNumber(minRajoitus, 20, 40, 6);
+	tft.drawNumber(maxRajoitus, 400, 40, 6);
+
+	tft.setTextColor(mittarinTaustaVari);
+	tft.setFreeFont(FSSB18);
+	tft.setTextSize(2);
+	tft.drawString("ENTER", OKNappi.vasenX() + 4, OKNappi.ylaY() + 10, GFXFF);
+	tft.setTextSize(1);
+	tft.setFreeFont(NULL);
 
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
 
-	tft.drawNumber(rajoitus, 200, 20, 6);
-	tft.drawNumber(minRajoitus, 20, 20, 6);
-	tft.drawNumber(maxRajoitus, 400, 20, 6);
-
-	int laskuri = 0;
-	const int toleranssi = 40;
 	while (myTouch.dataAvailable() == true){}
 	while (true)
 	{
-
 		if (myTouch.dataAvailable() == true)
 		{
 			myTouch.read();
 			temp.X = myTouch.getX();
 			temp.Y = myTouch.getY();
 
-			if (onkoSuorakaiteessa(temp, saadinKeski, saadinXr, saadinYr) == EXIT_SUCCESS)
+			//if (onkoSuorakaiteessa(temp, saadinKeski, saadinXr, saadinYr) == EXIT_SUCCESS)
+			if (saadin.onkoSisalla(temp) == EXIT_SUCCESS)
 			{
 				while (myTouch.dataAvailable() == true)
 				{
 					delay(20);
 					myTouch.read();
-					saadinKeski.X = myTouch.getX();
+					//saadinKeski.X = myTouch.getX();
+					saadin.asetaKpX(myTouch.getX());
 					
 					//tarkasta.X >= keski.X - xR && tarkasta.X <= keski.X + xR
-					if (!(saadinKeski.X >= vanhaX - toleranssi && saadinKeski.X <= vanhaX + toleranssi))// (saadinKeski.X < 0 || saadinKeski.X > xPikselit)
+					//if (!(saadinKeski.X >= vanhaX - toleranssi && saadinKeski.X <= vanhaX + toleranssi))// (saadinKeski.X < 0 || saadinKeski.X > xPikselit)
+					if (!(saadin.keskiX() >= vanhaX - toleranssi && saadin.keskiX() <= vanhaX + toleranssi))// (saadinKeski.X < 0 || saadinKeski.X > xPikselit)
 					{
-						saadinKeski.X = vanhaX;
+						//saadinKeski.X = vanhaX;
+						saadin.asetaKpX(vanhaX);
 						//Serial.println("toleranssi");
 					}
 
-
-					if (saadinKeski.X < alku.X)
+					if (saadin.keskiX() < alku.X)
 					{
-						saadinKeski.X = alku.X;
+						//saadinKeski.X = alku.X;
+						saadin.asetaKpX(alku.X);
 						//Serial.println("alku");
 					}
-					else if (saadinKeski.X > loppu.X)
+					else if (saadin.keskiX() > loppu.X)
 					{
-						saadinKeski.X = loppu.X;
+						//saadinKeski.X = loppu.X;
+						saadin.asetaKpX(loppu.X);
 						//Serial.println("loppu");
 					}
 
-					Serial.println(saadinKeski.X);
+					//Serial.println(saadinKeski.X);
 
-					tft.drawFloat(((maxRajoitus - minRajoitus) * (saadinKeski.X + alku.X / 2)) / float(liukupituus), 2, 200, 20, 6);
+					tft.drawFloat(map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus), 2, 200, 40, 6);
 
-					if (saadinKeski.X != vanhaX)
+					if (saadin.keskiX() != vanhaX)
 					{
-						int erotus = vanhaX - saadinKeski.X;
+						erotus = vanhaX - saadin.keskiX();
 
 						if (erotus < 0)
 						{
 							//Kumita vanha
-							tft.fillRect(vanhaX - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
+							//tft.fillRect(vanhaX - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
+							tft.fillRect(vanhaX - saadin.leveysR(), saadin.ylaY(), abs(erotus), saadin.korkeus(), mittarinTaustaVari);
 							//Piirrä uusi
-							tft.fillRect(vanhaX + saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
+							//tft.fillRect(vanhaX + saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
+							tft.fillRect(vanhaX + saadin.leveysR(), saadin.ylaY(), abs(erotus), saadin.korkeus(), rpmVari);
 						}
 						else
 						{
 							//Kumita vanha
-							tft.fillRect(vanhaX + saadinXr - erotus, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
+							//tft.fillRect(vanhaX + saadinXr - erotus, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, mittarinTaustaVari);
+							tft.fillRect(vanhaX + saadin.leveysR() - erotus, saadin.ylaY(), abs(erotus), saadin.korkeus(), mittarinTaustaVari);
 							//Piirrä uusi
-							tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
+							//tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, abs(erotus), saadinYr * 2, rpmVari);
+							tft.fillRect(saadin.vasenX(), saadin.ylaY(), abs(erotus), saadin.korkeus(), rpmVari);
 
 						}
 						//Piirrä uusi
 						//tft.fillRect(saadinKeski.X - saadinXr, saadinKeski.Y - saadinYr, saadinXr * 2, saadinYr * 2, rpmVari);
-						vanhaX = saadinKeski.X;
+						vanhaX = saadin.keskiX();
 					}
 				}
 			}
-			else if (onkoSuorakaiteessa(temp, OkNappi, OkXr, OkYr) == EXIT_SUCCESS)
+			//else if (onkoSuorakaiteessa(temp, OkNappi, OkXr, OkYr) == EXIT_SUCCESS)
+			else if (OKNappi.onkoSisalla(temp) == EXIT_SUCCESS)
 			{
-				uint8_t apuRajoitus = round(((maxRajoitus - minRajoitus) * (saadinKeski.X + alku.X / 2)) / float(liukupituus));
+				uint8_t apuRajoitus = map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus);
 				laheta('R', apuRajoitus);
 				return;
 			}
@@ -566,15 +568,7 @@ void rajoituksenSyotto()
 
 }
 
-int onkoSuorakaiteessa(XYpaikka tarkasta, XYpaikka keski, int xR, int yR)
-{
-	//xKord >= 200 && xKord <= 470 && yKord >= 160 && yKord <= 310
-	if (tarkasta.X >= keski.X - xR && tarkasta.X <= keski.X + xR && tarkasta.Y >= keski.Y - yR && tarkasta.Y <= keski.Y + yR)
-	{
-		return EXIT_SUCCESS;
-	}
-	return EXIT_FAILURE;
-}
+
 
 int keskiLaskin(int uusiPikseli, int liukupituus)
 {
@@ -722,6 +716,7 @@ void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara)
 	}
 }
 
+/*
 void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET], int pisteMaaraUlko, int pisteMaaraSisa)
 {
 	float hidastusLaskin = 0;
@@ -739,7 +734,7 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 		kehaPisteetSisaHidasdettu[0][i] = kehaPisteetSisa[0][pisteMaaraSisa - 1];
 		kehaPisteetSisaHidasdettu[1][i] = kehaPisteetSisa[1][pisteMaaraSisa - 1];
 		}
-		*/
+		
 		kehaPisteetSisaHidasdettu[0][i] = kehaPisteetSisa[0][j];
 		kehaPisteetSisaHidasdettu[1][i] = kehaPisteetSisa[1][j];
 
@@ -763,6 +758,7 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 		}
 	}
 }
+*/
 
 void rpmFunktio()
 {
@@ -873,7 +869,7 @@ void serialEvent2()
 					rajoitusPaalla = boolVastaanOtto & B00000001;
 					liikaaKierroksia = (boolVastaanOtto & B00000010) >> 1;
 					jarruPohjassa = (boolVastaanOtto & B00000100) >> 2;
-					Serial.println(vaihde);
+					//Serial.println(vaihde);
 					//Serial.println(rpm);
 					//Serial.println(matka);
 					//Serial.println(trippi);
@@ -902,8 +898,8 @@ void laheta(char otsikko, int data)
 }
 void laheta(char otsikko)
 {
-	Serial.print("Lahetettava otsikko: ");
-	Serial.println(otsikko);
+	//Serial.print("Lahetettava otsikko: ");
+	//Serial.println(otsikko);
 	//digitalWrite(lahetysPin, HIGH);
 
 	Serial2.write('V');
