@@ -19,8 +19,8 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #define jarruKytkinPin 15 //Jarrukytkin, PJ0
 
 //PWM-pinnit (HUOM! Taajuuksia on vaihdettu, joten PWMmää on ohjattu suoraan rekisteriä manipuloimalla.)
-#define alasVaihtoKaskyPin 10 //Käskys moottorille vaihtaa alas. kello2 OC2A, PB4
-#define ylosVaihtoKaskyPin 9 //Käskys moottorille vaihtaa ylös. kello2 OC2B, PH6
+#define alasVaihtoKaskyPin 11 //Käskys moottorille vaihtaa alas. kello1 OC1A, PB5
+#define ylosVaihtoKaskyPin 12 //Käskys moottorille vaihtaa ylös. kello1 OC1B, PB6
 #define rajoitusPWMpin 5 //kello3 duty=OCR3A, PE3
 #define vilkkuOikeaPWMpin 6 //kello4 duty=OCR4A, PH3
 #define vilkkuVasenPWMpin 7 //kello4 duty=OCR4B, PH4
@@ -59,11 +59,11 @@ const uint16_t vaihtoAika = 1000; //Vaihtopulssin kesto
 const uint16_t nopeudenLaskentaAika = 100;
 const uint16_t bensaMittausAika = 3000; //3s
 const uint16_t rajoitusAika = 50;
-const uint16_t vilkkuNopeus = 20000; //Alustavasti hyvä taajuus
+const uint16_t vilkkuNopeus = 15625; //Alustavasti hyvä taajuus
 const uint16_t vikkumisAika = 3000; //3s
 const uint16_t pakkiRajoitus = 5; //Pakin nopeusrajoitus
 const uint8_t minRajoitus = 5;
-const uint8_t maxRajoitus = 30;
+const uint8_t maxRajoitus = 40;
 const uint8_t maxNayttoKierrokset = 11; //*1000
 const uint16_t punaraja = 8000;
 const uint8_t bensapalkkiKorkeus = 120;
@@ -86,10 +86,11 @@ bool vaihtoNappiYlhaalla = true; //
 bool liikaaKierroksia = false;
 bool vilkutaOikea = false;
 bool vilkutaVasen = false;
+bool vilkuta = false;
 unsigned long vaihdetaanVanhaAika = 0;
 volatile unsigned long vaihtoNappiVanhaAika = 0; //
 unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
-unsigned long vilkkuAika = 0;
+volatile unsigned long vilkkuAika = 0;
 volatile uint16_t nopeudenLaskentaAikaLaskuri = 0;
 volatile uint16_t bensaMittausAikaLaskuri = 0;
 bool vaihdeKytkinYlos = false; //Vaihteen vaihto kytkin ylös tila
@@ -132,62 +133,53 @@ void setup()
 
 	alkuarvojenLahetys();
 
-	//bitSet(rekisteri, bitti);
 	//PWM
-	//TODO katon nämä joskus vähän siistimmiksi.
-	pinMode(ylosVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto käsky ylös
-	pinMode(alasVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto alas ylös
-	pinMode(rajoitusPWMpin, OUTPUT); //Nopeusrajoitus
-	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
-	pinMode(vilkkuVasenPWMpin, OUTPUT); //Ulostulo vasemmalle vilkkureleelle
-	analogWrite(ylosVaihtoKaskyPin, 1);
-	analogWrite(alasVaihtoKaskyPin, 1);
-	analogWrite(rajoitusPWMpin, 1);
-	analogWrite(vilkkuOikeaPWMpin, 1);
-	analogWrite(vilkkuVasenPWMpin, 1);
-
-	//Taajuudet
 	//kello3 30Hz PIN5
-	TCCR3B = (TCCR3B & B11111000) | B00000101;
-	OCR3A = 0;
+	pinMode(rajoitusPWMpin, OUTPUT); //Nopeusrajoitus
+	//Fast PWM nolla OCR, katto ICR, asettaa ohjalla
+	TCCR3A = 0; //0b10000011 A = päällä
+	TCCR3B = 0b00010101;
+	ICR3 = 520;
+	OCR3A = rajoitusAika;
 	//TIMSK3 |= (1 << TOIE3);
 
-	//kello4 0,8Hz A PIN6 ja B PIN7
-	TCCR4B = (TCCR4B & B11100000) | B00011101;
-	TCCR4A = (TCCR4A & B11111100) | B00000010;
-	ICR4 = vilkkuNopeus;
-	OCR4A = 0;
-	OCR4B = 0;
-	//TIMSK4 |= (1 << TOIE4);
+	//kello4 XX Hz A PIN6 ja B PIN7
+	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
+	pinMode(vilkkuVasenPWMpin, OUTPUT); //Ulostulo vasemmalle vilkkureleelle
+	TCCR4A = 0b11; //0b0100011 A, 0b00010011 B = päälle
+	TCCR4B = B00001101;
+	OCR4A = vilkkuNopeus; //PIN6, OCR4A, PH3
+	OCR4B = vilkkuNopeus; //PIN7, OCR4B, PH4
 	
-	//kello2 60kHz B PIN9  ja A PIN10
-	//Fast PWM, nollaa OCR, asetaa pojalla.  0b10100011;
-	TCCR2A = (1 << COM2A1) | (1 << COM2B1) | (1 << WGM21) | (1 << WGM20);
-	/*
-	TCCR2A = 0; //TODO päätä joskus mitä haluat käyttää.
-	bitSet(TCCR2A, COM2A1);
-	bitSet(TCCR2A, COM2B1);
-	bitSet(TCCR2A, WGM21);
-	bitSet(TCCR2A, WGM20);
-	*/
-	// Esijakaja 1.  0b00000001;
-	TCCR2B = (1 << CS20); 
-	//bitSet(TCCR2B, CS20);
-	OCR2A = 0; 
-	OCR2B = 0;
+	//kello1 80kHz B PIN9  ja A PIN10
+	pinMode(ylosVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto käsky ylös
+	pinMode(alasVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto alas ylös
+	//Fast PWM, nollaa OCR, katto ICR, asetaa pojalla.  0b10100011;
+	TCCR1A = 0b01; //0b10000010 A, 0b00100010 B = päällä
+	TCCR1A = 0b10100010;
+	// Esijakaja 1.  0b00001001;
+	TCCR1B = 0b00011001;
+	ICR1 = 199;
+	OCR1A = 195; 
+	OCR1B = 195;
+	while (true)
+	{
 
-	//kello1 aikakeskeytykset
-	TCCR1A = 0;     // set entire TCCR1A register to 0
-	TCCR1B = 0;     // same for TCCR1B
-	TCNT1 = 0;
+	}
+
+	//kello2 aikakeskeytykset
+	TCCR2A = 0;     // set entire TCCR2A register to 0
+	TCCR2B = 0;     // same for TCCR2B
+	TCNT2 = 0;
 	// set compare match register to desired timer count:
-	OCR1A = 16; //kierros ja muut softalaskurit, 1ms
+	OCR2A = 16; //kierros ja muut softalaskurit, 1ms
 	// CTC kattona maksimi
-	TCCR1B |= (1 << WGM12);
+	TCCR2B |= (1 << WGM12);
 	// Set CS10 and CS12 bits for 1024 prescaler:
-	TCCR1B |= (1 << CS10) | (1 << CS12);
+	TCCR2B |= (1 << CS10) | (1 << CS12);
 	//Aika keskeytykset päälle. A-Kanava
-	TIMSK1 |= (1 << OCIE1A);
+	TIMSK2 |= (1 << OCIE1A);
+
 
 	//kello5 ulkoinen laskuri
 	TCCR5A = 0;
@@ -262,7 +254,9 @@ void loop()
 
 	if (vaihtaaVaihdetta == true)
 	{
+		Serial.println("vaihedaan");
 		//Tutkitaan kuinka kauan on vaihteenvaihtomoottorille annettu PWMmää.
+		Serial.println(millis() - vaihdetaanVanhaAika);
 		if (millis() - vaihdetaanVanhaAika > vaihtoAika)
 		{
 			OCR2A = 0; //PIN10, PB4
@@ -284,6 +278,7 @@ void loop()
 			if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
 			{
 				vaihtaaVaihdetta = true;
+
 				bitWrite(boolLahetysTavu, 1, 0);
 
 				switch (vaihde)
@@ -334,8 +329,9 @@ void loop()
 					default:
 						break;
 				}
-				vaihdeKytkinAlas == false;
-				vaihdeKytkinYlos == false;
+				vaihdeKytkinAlas = false;
+				vaihdeKytkinYlos = false;
+
 			}
 			else
 			{
@@ -347,7 +343,7 @@ void loop()
 }
 
 //Aikakeskeytys noin 1ms
-ISR(TIMER1_COMPA_vect)
+ISR(TIMER2_COMPA_vect)
 {
 	rpmADC();
 	nopeudenLaskentaAikaLaskuri++;
@@ -393,6 +389,7 @@ ISR(INT1_vect)
 {
 	vaihdeKytkinAlas = true;
 	vaihtoNappiVanhaAika = millis();
+	Serial.println("Alas vahtaa");
 }
 
 //Vaihto ylös
@@ -400,18 +397,23 @@ ISR(INT2_vect)
 {
 	vaihdeKytkinYlos = true;
 	vaihtoNappiVanhaAika = millis();
+	Serial.println("Ylos vahtaa");
 }
 
 //Vilkku oikea
 ISR(INT3_vect)
 {
-	vilkutaOikea = true;
+	TCCR4A = B01000000;
+	vilkkuAika = millis();
+	Serial.println("Vilkkuu oikea");
 }
 
 //Vilkku vasen
 ISR(INT4_vect)
 {
-	vilkutaVasen = true;
+	TCCR4A = B00010000;
+	vilkkuAika = millis();
+	Serial.println("Vilkkuu vasen");
 }
 
 /*Rajoitin kytkimen interrupt-funktio
@@ -526,7 +528,7 @@ void rpmLaskuri()
 	rpmSumma = rpmSumma + kierrosLuku[kierrosIndeksi];
 
 	//TODO tee oikea muunnos
-	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
+	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
 	//Serial.println(rpm);
 	kierrosIndeksi++;
 }
@@ -624,32 +626,14 @@ void lueROM()
 
 void valot()
 {
-	if (vilkutaOikea == true || vilkutaVasen == true)
+	//Vilkut
+	if (TCCR4A != 0)
 	{
+		Serial.println("pitas vilkku");
+
 		if (millis() - vilkkuAika > vikkumisAika)
 		{
-			vilkutaOikea = false;
-			vilkutaVasen = false;
-		}
-
-		if (vilkutaOikea == true)
-		{
-			OCR4A = vilkkuNopeus / 2; //PIN6, OCR4A, PH3
-			vilkkuAika = millis();
-		}
-		else
-		{
-			OCR4A = 0;
-		}
-
-		if (vilkutaVasen == true)
-		{
-			OCR4B = vilkkuNopeus / 2; //PIN7, OCR4B, PH4
-			vilkkuAika = millis();
-		}
-		else
-		{
-			OCR4B = 0;
+			TCCR4A = 0;
 		}
 	}
 }

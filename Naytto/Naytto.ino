@@ -14,7 +14,6 @@ TFT_HX8357_Due tft = TFT_HX8357_Due();
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
 
-
 // Initialize touchscreen
 // ----------------------
 // Set the pins to the correct ones for your development board
@@ -22,7 +21,6 @@ extern unsigned short bensaIkoni[];
 // Standard Arduino Mega/Due shield            :  6, 5, 4, 3, 2
 
 UTouch  myTouch(6, 5, 4, 3, 2);
-
 
 #define xPikselit 480
 #define yPiksetlit 320
@@ -141,7 +139,6 @@ void setup()
 	myTouch.setPrecision(PREC_MEDIUM);
 
 	alkuarvojenHaku();
-
 
 	//RPM-laskuja
 	pisteMaaraUlko = pisteetTaulukkoon(xK, yK, ulkoA, ulkuB, kehaPisteetUlko);
@@ -437,7 +434,6 @@ void mittarinTausta()
 //#define yPiksetlit 320
 void rajoituksenSyotto()
 {
-
 	const XYpaikka alku = { 80, 160 };
 	const XYpaikka loppu = { xPikselit - alku.X, alku.Y };
 	Suorakaide saadin = { { 0, alku.Y }, 130 , 130 };
@@ -463,7 +459,7 @@ void rajoituksenSyotto()
 	tft.fillRect(OKNappi.vasenX(), OKNappi.ylaY(), OKNappi.leveys(), OKNappi.korkeus(), vapaaVari);
 	for (size_t i = 0; i < 2; i++)
 	{
-		tft.drawRect(alku.X - saadin.leveysR() - 2 - i, saadin.ylaY() - 2 - i, liukupituus + saadin.leveys() + 4 + i, saadin.korkeus() + 4 + 1, rpmRajat);
+		tft.drawRect(alku.X - saadin.leveysR() - 2 - i, saadin.ylaY() - 2 - i, liukupituus + saadin.leveys() + 4 + i*2, saadin.korkeus() + 4 + i*2, rpmRajat);
 	}
 	tft.drawRect(alku.X - saadin.leveysR() - 2, saadin.ylaY() - 2 , liukupituus + saadin.leveys() + 4, saadin.korkeus() + 4, rpmRajat);
 
@@ -777,15 +773,19 @@ void rpmFunktio()
 			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
 
 			rpmIndeksiSisa = rpmIndeksiSisa - 10;
+
 			if (rpmIndeksiSisa < 0)
 			{
 				rpmIndeksiSisa = 0;
 			}
 
-			if (rpmIndeksiUlko > pisteMaaraUlko || rpmIndeksiSisa > pisteMaaraSisa)
+			if (rpmIndeksiUlko >= pisteMaaraUlko)
 			{
-				rpmIndeksiUlko = pisteMaaraUlko - 1;
-				rpmIndeksiSisa = pisteMaaraSisa - 1;
+				rpmIndeksiUlko = pisteMaaraUlko - 20;
+			}
+			if (rpmIndeksiSisa >= pisteMaaraSisa)
+			{
+				rpmIndeksiSisa = pisteMaaraSisa - 20;
 			}
 
 			if (rpmIndeksiUlko < punarajaIndeksiUlko)
@@ -814,7 +814,17 @@ void rpmFunktio()
 			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
 
 			rpmIndeksiSisa = rpmIndeksiSisa - 10;
-			if (rpmIndeksiSisa < 0)
+
+			if (rpmIndeksiUlko >= pisteMaaraUlko)
+			{
+				rpmIndeksiUlko = pisteMaaraUlko - 20;
+			}
+
+			if (rpmIndeksiSisa >= pisteMaaraSisa)
+			{
+				rpmIndeksiSisa = pisteMaaraSisa - 20;
+			}
+			else if (rpmIndeksiSisa < 0)
 			{
 				rpmIndeksiSisa = 0;
 			}
