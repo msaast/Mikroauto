@@ -622,14 +622,7 @@ void vastaanota()
 		default:
 			break;
 		}
-		/*
-		Serial.print(" otsikko: ");
-		Serial.print(otsikko);
-		Serial.print(" data: ");
-		Serial.println(param, DEC);
-		*/
 	}
-
 }
 
 //Luetaan matkamittarit ja muut Romista
