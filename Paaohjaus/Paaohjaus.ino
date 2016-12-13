@@ -214,9 +214,9 @@ void setup()
 	pinMode(vaihtoKytkinYlosPin, INPUT_PULLUP); //Vaihde ylos kytkin
 	pinMode(vilkkuOikeaKytkinPin, INPUT_PULLUP); //Vilkku oikealle kytkin
 	pinMode(vilkkuVasenKytkinPin, INPUT_PULLUP); //Villku vasemmalle kytkin
-	EICRA = 0b10101010;
+	EICRA = 0b10101010; //10 laskeva reuna
 	EICRB = 0b10;
-	//EIMSK = 0b00011111;
+	//EIMSK = 0b00011111; //Interuptimaski
 	EIMSK = 0b00011110; //ROMin kirjotus poissa
 
 	pinMode(jarruKytkinPin, INPUT_PULLUP); //Jaaruvalon kytkin vaihto interuptiks

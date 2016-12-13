@@ -758,7 +758,9 @@ void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisa
 
 void rpmFunktio()
 {
-	int rpmInkrementti = 14;
+	const uint8_t alaHidastus = 10;
+	const uint8_t rpmInkrementti = 14;
+	const uint8_t paahMikaTassaON = 4;
 	if (rpm % rpmInkrementti != 0)
 	{
 		rpm = rpm - (rpm % rpmInkrementti);
@@ -772,20 +774,20 @@ void rpmFunktio()
 			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
 			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
 
-			rpmIndeksiSisa = rpmIndeksiSisa - 10;
+			rpmIndeksiSisa = rpmIndeksiSisa - alaHidastus;
 
 			if (rpmIndeksiSisa < 0)
 			{
 				rpmIndeksiSisa = 0;
 			}
 
-			if (rpmIndeksiUlko >= pisteMaaraUlko)
+			if (rpmIndeksiUlko >= pisteMaaraUlko - paahMikaTassaON)
 			{
-				rpmIndeksiUlko = pisteMaaraUlko - 20;
+				rpmIndeksiUlko = pisteMaaraUlko - paahMikaTassaON;
 			}
-			if (rpmIndeksiSisa >= pisteMaaraSisa)
+			if (rpmIndeksiSisa >= pisteMaaraSisa - paahMikaTassaON)
 			{
-				rpmIndeksiSisa = pisteMaaraSisa - 20;
+				rpmIndeksiSisa = pisteMaaraSisa - paahMikaTassaON;
 			}
 
 			if (rpmIndeksiUlko < punarajaIndeksiUlko)
@@ -813,16 +815,16 @@ void rpmFunktio()
 			rpmIndeksiUlko = round((pisteMaaraUlko * rpmVali) / float(mittarinMaks));
 			rpmIndeksiSisa = round((pisteMaaraSisa * rpmVali) / float(mittarinMaks));
 
-			rpmIndeksiSisa = rpmIndeksiSisa - 10;
+			rpmIndeksiSisa = rpmIndeksiSisa - alaHidastus;
 
-			if (rpmIndeksiUlko >= pisteMaaraUlko)
+			if (rpmIndeksiUlko >= pisteMaaraUlko - paahMikaTassaON)
 			{
-				rpmIndeksiUlko = pisteMaaraUlko - 20;
+				rpmIndeksiUlko = pisteMaaraUlko - paahMikaTassaON;
 			}
 
-			if (rpmIndeksiSisa >= pisteMaaraSisa)
+			if (rpmIndeksiSisa >= pisteMaaraSisa - paahMikaTassaON)
 			{
-				rpmIndeksiSisa = pisteMaaraSisa - 20;
+				rpmIndeksiSisa = pisteMaaraSisa - paahMikaTassaON;
 			}
 			else if (rpmIndeksiSisa < 0)
 			{
