@@ -40,7 +40,6 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #define jarruValokytkenta PORTL
 #define jarruValokytkentaBitti PL3
 
-
 //Maskeja PWM kytkentään
 #define rajoitusPaalle 0b10000010
 #define rajoitusPois 0b11
@@ -56,9 +55,7 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #define vaihtoPois 0b10
 #define vaihtoPWM TCCR1A
 
-//Maskeja Digi-pinnjen käyttöön
-
-						 //Vakioita
+//Vakioita
 const double pii = 3.14159; //Pii
 const uint8_t kierrosTaulukkoKOKO = 6;
 const uint8_t nopeusTaulukkoKOKO = 6;
@@ -175,7 +172,7 @@ void setup()
 	//kello4 0,8Hz Hz A PIN6 ja B PIN7
 	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
 	pinMode(vilkkuVasenPWMpin, OUTPUT); //Ulostulo vasemmalle vilkkureleelle
-	//CTC, tilanvaihto OCR, 50% kanttiaaltoa
+	//CTC, tilanvaihto ja nollaus OCR, 50% kanttiaaltoa
 	TCCR4A = vilkkuPois; //0b0100000 A, 0b00010000 B = päälle
 	TCCR4B = 0b00001101;
 	OCR4A = vilkkuNopeus; //PIN6, OCR4A, PH3
@@ -195,6 +192,7 @@ void setup()
 
 	//kello2 aikakeskeytykset
 	//CTC, nollaa OCR, katto MAX
+	
 	TCCR2A = 0; 
 	TCCR2B = (1 << WGM12) | (1 << CS12) | (1 << CS10); //0b000001101
 	OCR2A = 16; //kierros ja muut softalaskurit, 1ms
@@ -538,8 +536,9 @@ void rpmLaskuri()
 	
 	rpmSumma = rpmSumma + kierrosLuku[kierrosIndeksi];
 
-	//TODO tee oikea muunnos
-	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
+	//TODO Tee oikea muunnos. Vaikka joku kerrointaulukko kun on saatu mitattua jännitteitä eri taajuuksilla.
+	//rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
+	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
 	//Serial.println(rpm);
 	kierrosIndeksi++;
 }

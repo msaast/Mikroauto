@@ -465,7 +465,15 @@ void rajoituksenSyotto()
 
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
 	tft.drawCentreString("Set Speed Limit km/h", xPikselit / 2, 10, 4);
-	tft.drawNumber(rajoitus, 200, 40, 6);
+	//tft.drawNumber(rajoitus, 200, 40, 6);
+	if (rajoitus > 9)
+	{
+		tft.drawNumber(rajoitus, xPikselit / 2 - 16 * 2, 40, 6);
+	}
+	else
+	{
+		tft.drawNumber(rajoitus, xPikselit / 2 - 16, 40, 6);
+	}
 	tft.drawNumber(minRajoitus, 20, 40, 6);
 	tft.drawNumber(maxRajoitus, 400, 40, 6);
 
@@ -477,6 +485,8 @@ void rajoituksenSyotto()
 	tft.setFreeFont(NULL);
 
 	tft.setTextColor(rpmRajat, mittarinTaustaVari);
+
+
 
 	while (myTouch.dataAvailable() == true){}
 	while (true)
@@ -521,7 +531,17 @@ void rajoituksenSyotto()
 
 					//Serial.println(saadinKeski.X);
 
-					tft.drawFloat(map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus), 2, 200, 40, 6);
+					//tft.drawFloat(map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus), 2, 200, 40, 6);
+
+					if (map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus) > 9)
+					{
+						tft.drawNumber(map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus), xPikselit / 2 - 16 * 2, 40, 6);
+					}
+					else
+					{
+						tft.fillRect(xPikselit / 2 - 16 * 2, 40, 16 * 4, 40, mittarinTaustaVari);
+						tft.drawNumber(map(saadin.keskiX(), alku.X, loppu.X, minRajoitus, maxRajoitus), xPikselit / 2 - 16, 40, 6);
+					}
 
 					if (saadin.keskiX() != vanhaX)
 					{
@@ -561,13 +581,6 @@ void rajoituksenSyotto()
 			}
 		}
 	}
-
-}
-
-
-
-int keskiLaskin(int uusiPikseli, int liukupituus)
-{
 
 }
 
@@ -711,50 +724,6 @@ void jarjasta(short taulukko[RIVIT][MAXPISTEET], int maara)
 		}
 	}
 }
-
-/*
-void hidastaSisa(short kehaPisteetSisa[RIVIT][MAXPISTEET], short kehaPisteetSisaHidasdettu[RIVIT][MAXPISTEET], int pisteMaaraUlko, int pisteMaaraSisa)
-{
-	float hidastusLaskin = 0;
-
-	for (int i = 0, j = 0; i < pisteMaaraUlko; i++)
-	{
-		/*
-		if (j <= pisteMaaraSisa)
-		{
-		kehaPisteetSisaHidasdettu[0][i] = kehaPisteetSisa[0][j];
-		kehaPisteetSisaHidasdettu[1][i] = kehaPisteetSisa[1][j];
-		}
-		else
-		{
-		kehaPisteetSisaHidasdettu[0][i] = kehaPisteetSisa[0][pisteMaaraSisa - 1];
-		kehaPisteetSisaHidasdettu[1][i] = kehaPisteetSisa[1][pisteMaaraSisa - 1];
-		}
-		
-		kehaPisteetSisaHidasdettu[0][i] = kehaPisteetSisa[0][j];
-		kehaPisteetSisaHidasdettu[1][i] = kehaPisteetSisa[1][j];
-
-		if (hidastusLaskin >= 2)
-		{
-			j++;
-			hidastusLaskin = 0;
-		}
-
-		if (i % 2 == 0)
-		{
-			hidastusLaskin = hidastusLaskin + 2;
-		}
-		else if (i % 3 == 0)
-		{
-			hidastusLaskin = hidastusLaskin + 1.5;
-		}
-		else
-		{
-			hidastusLaskin = hidastusLaskin + 2;
-		}
-	}
-}
-*/
 
 void rpmFunktio()
 {
