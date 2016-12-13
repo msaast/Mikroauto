@@ -13,7 +13,7 @@
 #define _VMDEBUG 1
 #define printf iprintf
 #define F_CPU 84000000L
-#define ARDUINO 10609
+#define ARDUINO 106012
 #define ARDUINO_SAM_DUE
 #define ARDUINO_ARCH_SAM
 #define __SAM3X8E__
@@ -48,6 +48,7 @@ extern "C" void __cxa_pure_virtual() {;}
 #include <arduino.h>
 #include <pins_arduino.h> 
 #include <variant.h> 
+#include <variant.cpp> 
 # define cli()  __asm__ __volatile__ ("cli" ::: "memory")
 # define sei()  __asm__ __volatile__ ("sei" ::: "memory")
 
@@ -227,7 +228,5 @@ __attribute__((always_inline)) static __INLINE void __set_PRIMASK(uint32_t priMa
 }
 
 
-#include <Naytto.ino>
-#include <aareton.c>
-#include <bensaIkoni.c>
+#include "Naytto.ino"
 #endif
