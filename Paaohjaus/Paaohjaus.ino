@@ -46,7 +46,7 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös t
 #define rajoitusPois 0b11
 #define rajoitusPWM TCCR3A
 
-#define oikeallePaalle 0b0100000
+#define oikeallePaalle 0b01000000
 #define vasemmallePaalle 0b00010000
 #define vilkkuPois 0
 #define vilkkuPWM TCCR4A
@@ -86,8 +86,8 @@ const uint16_t vaihtoAika = 2000; //Vaihtopulssin kesto
 const uint16_t nopeudenLaskentaAika = 100;
 const uint16_t bensaMittausAika = 3000; //3s
 const uint16_t rajoitusAika = 400;
-const uint16_t vilkkuNopeus = 15625; //Alustavasti hyvä taajuus
-const uint16_t vikkumisAika = 3000; //3s
+const uint16_t vilkkuNopeus = 10000; //Laskuri vaihtaa tilan tässä luvussa.
+const uint16_t vikkumisAika = 10000; //10s
 const uint16_t pakkiRajoitus = 5; //Pakin nopeusrajoitus
 const uint8_t minRajoitus = 5;
 const uint8_t maxRajoitus = 40;
@@ -107,13 +107,11 @@ bool laskeNopeus = true;
 bool laskeKierrokset = true;
 bool laskeBensa = true;
 
-bool vaihtaaVaihdetta = false; //Vaihteen vaihtajan kuittas muuttuja
+//bool vaihtaaVaihdetta = false; //Vaihteen vaihtajan kuittas muuttuja
 bool rajoitusPaalla = false; //Kierrosten rajoittimen muuttuja
 bool vaihtoNappiYlhaalla = true; //
 bool liikaaKierroksia = false;
-bool vilkutaOikea = false;
-bool vilkutaVasen = false;
-bool vilkuta = false;
+
 unsigned long vaihdetaanVanhaAika = 0;
 volatile unsigned long vaihtoNappiVanhaAika = 0; //
 unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
@@ -131,6 +129,7 @@ double trippi = 0;
 char vaihde = 'N'; //Päällä oleva vaihde
 bool jarruPohjassa = false;
 
+
 /*
 B00000001 = Rajoitus päällä/pois
 B00000010 = Liikaa kierroksia vaihtoon
@@ -140,7 +139,10 @@ B00010000 =
 B00100000 =
 B01000000 =
 B10000000 =							*/
-uint8_t boolLahetysTavu = 0;
+#define rajoitusBitti 0
+#define liikaaRPMbitti 1
+#define jarruPojasssaBitti 2
+uint8_t boolLahetysTavu = 0; //Tavu millä voidaan lähettää 8 bool bittiä.
 
 uint16_t kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiavaja.
 uint8_t kierrosIndeksi = 0;
@@ -170,9 +172,10 @@ void setup()
 	OCR3A = rajoitusAika;
 	//TIMSK3 |= (1 << TOIE3);
 
-	//kello4 XX Hz A PIN6 ja B PIN7
+	//kello4 0,8Hz Hz A PIN6 ja B PIN7
 	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
 	pinMode(vilkkuVasenPWMpin, OUTPUT); //Ulostulo vasemmalle vilkkureleelle
+	//CTC, tilanvaihto OCR, 50% kanttiaaltoa
 	TCCR4A = vilkkuPois; //0b0100000 A, 0b00010000 B = päälle
 	TCCR4B = 0b00001101;
 	OCR4A = vilkkuNopeus; //PIN6, OCR4A, PH3
@@ -191,15 +194,11 @@ void setup()
 	OCR1B = 195;
 
 	//kello2 aikakeskeytykset
+	//CTC, nollaa OCR, katto MAX
 	TCCR2A = 0; 
-	TCCR2B = 0;
-	TCNT2 = 0;
-	// set compare match register to desired timer count:
+	TCCR2B = (1 << WGM12) | (1 << CS12) | (1 << CS10); //0b000001101
 	OCR2A = 16; //kierros ja muut softalaskurit, 1ms
-	// CTC kattona maksimi
-	TCCR2B |= (1 << WGM12);
-	// Set CS10 and CS12 bits for 1024 prescaler:
-	TCCR2B |= (1 << CS10) | (1 << CS12);
+	TCNT2 = 0; //Laskurinollaan
 	//Aika keskeytykset päälle. A-Kanava
 	TIMSK2 |= (1 << OCIE2A);
 
@@ -235,7 +234,7 @@ void setup()
 	DIDR0 = 0b11; //Anologi päälle A0, A1
 
 	rajoitusPaalla = bitRead(rajoitusKytkinPortti, jarruKytkinBitti); //Mikä on rajoituskykimen tila
-	bitWrite(boolLahetysTavu, 0, rajoitusPaalla);
+	bitWrite(boolLahetysTavu, rajoitusBitti, rajoitusPaalla);
 
 	lueROM();
 
@@ -300,7 +299,7 @@ void loop()
 
 			if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
 			{
-				bitWrite(boolLahetysTavu, 1, 0);
+				bitWrite(boolLahetysTavu, liikaaRPMbitti, LOW);
 
 				switch (vaihde)
 				{
@@ -353,7 +352,7 @@ void loop()
 			}
 			else
 			{
-				bitWrite(boolLahetysTavu, 1, 1); //Kirjoitettaan lähetystavuun, että liikaa kierroksia vaihteen vaihtoon.
+				bitWrite(boolLahetysTavu, liikaaRPMbitti, HIGH); //Kirjoitettaan lähetystavuun, että liikaa kierroksia vaihteen vaihtoon.
 												 //Kaasu ylös!!
 			}
 		}
@@ -366,7 +365,8 @@ void loop()
 //Aikakeskeytys noin 1ms
 ISR(TIMER2_COMPA_vect)
 {
-	rpmADC();
+	rpmADC(); //Kierros ADC pöölle, jäädään oottamaa interuptia.
+	//Inkrementoidaan muita aikalaskureita.
 	nopeudenLaskentaAikaLaskuri++;
 	bensaMittausAikaLaskuri++;
 }
@@ -374,8 +374,9 @@ ISR(TIMER2_COMPA_vect)
 //Kierros ADC
 ISR(ADC_vect)
 {
-	rpmMuunnnos = ADC;
-	laskeKierrokset = true;
+	//Kierros ADC valmis.
+	rpmMuunnnos = ADC; //Otetaan muunnos muistiin.
+	laskeKierrokset = true; //Nostaan kierrosten laskulippu.
 }
 
 /* Kirjoitettaan tarvittavat tiedot EEPROMiin talteen, kun virrat katkaistaan.
@@ -412,7 +413,7 @@ ISR(INT1_vect)
 	{
 		vaihdeKytkinAlas = true;
 		vaihtoNappiVanhaAika = millis();
-		Serial.println("Alas vahtaa");
+		//Serial.println("Alas vahtaa");
 	}
 }
 
@@ -423,52 +424,41 @@ ISR(INT2_vect)
 	{
 		vaihdeKytkinYlos = true;
 		vaihtoNappiVanhaAika = millis();
-		Serial.println("Ylos vahtaa");
+		//Serial.println("Ylos vahtaa");
 	}
 }
 
 //Vilkku oikea
 ISR(INT3_vect)
 {
-	vilkkuPWM = oikeallePaalle;
-	//TCCR4A = 0b0100000;
-	vilkkuAika = millis();
-	Serial.println("Vilkkuu oikea");
+	vilkkuPWM = oikeallePaalle; //Vilkku PWM pöölle.
+	vilkkuAika = millis(); //Aika muistiin.
+	//Serial.println("Vilkkuu oikea");
 }
 
 //Vilkku vasen
 ISR(INT4_vect)
 {
-	vilkkuPWM = vasemmallePaalle;
-	//TCCR4A = 0b00010000;
-	vilkkuAika = millis();
-	Serial.println("Vilkkuu vasen");
+	vilkkuPWM = vasemmallePaalle; //Vilkku PWM pöölle.
+	vilkkuAika = millis(); //Aika muistiin.
+	//Serial.println("Vilkkuu vasen");
 }
 
 /*Rajoitin kytkimen interrupt-funktio
 Kun kytkimen tila muuttuu muutetaan "rajoitus" muuttujaa ja jos rajoitin laitetaan pois päältä poistetaan rajoitus.*/
 ISR(PCINT0_vect)
 {
-	cli();
-	if (bitRead(rajoitusKytkinPortti, rajoitusKytkinBitti) == 1) //rajoituksenKytkentaPin
-	{
-		rajoitusPaalla = true;
-		bitWrite(boolLahetysTavu, 0, 1);
-	}
-	else
-	{
-		rajoitusPaalla = false;
-		bitWrite(boolLahetysTavu, 0, 0);
-	}
-	sei();
+	rajoitusPaalla = bitRead(rajoitusKytkinPortti, jarruKytkinBitti); //Mikä on rajoituskykimen tila
+	bitWrite(boolLahetysTavu, rajoitusBitti, rajoitusPaalla);
 }
 
-//Jarru
+//Jarrun tilan tutkinta interupti
 ISR(PCINT1_vect)
 {
+	//Pinni on ylös vedetty niin pitää kääntää sen tila, että tämä toimii niin kun olen ajatellu sen alunpittäin.
 	jarruPohjassa = bitRead(jarruKytkinPortti, jarruKytkinBitti) ^ true;
 	bitWrite(jarruValokytkenta, jarruValokytkentaBitti, jarruPohjassa);
-	bitWrite(boolLahetysTavu, 2, jarruPohjassa); ///Kirjoitetaan lähetystavuun jarrun tila.
+	bitWrite(boolLahetysTavu, jarruPojasssaBitti, jarruPohjassa); ///Kirjoitetaan lähetystavuun jarrun tila.
 }
 
 char sarjaVali;
@@ -491,10 +481,10 @@ void serialEvent2()
 }
 
 /*Nopeuden lasku fuktio
-Laskee globaaliin muuttajaan "nopeus" auton nopeuden kilometreinä tunnissa. */
+Laskee globaaliin muuttajaan "nopeus" auton nopeuden kilometreinä tunnissa.*/
 void nopeusLaskuri()
 {
-	nopeusPulssit = TCNT5;
+	nopeusPulssit = TCNT5; //Luetaan nopeuspulssit laskurista.
 	TCNT5 = 0; //Nollataan pulssi laskuri.
 	double matkaVali = ((float)nopeusPulssit / (float)pulssitPerKierrosNopeus) * pii * pyoraHalkaisija; //Metrejä
 	double valiAika = (millis() - nopeusPulssitAika) / 1000.0; //Sekunteja
@@ -526,13 +516,6 @@ void nopeusLaskuri()
 	nopeusTaulukko[nopeusIndeksi] = round((matkaVali / valiAika) * 3.6);
 
 	nopeusSumma = nopeusSumma + nopeusTaulukko[nopeusIndeksi];
-
-	/*
-	for (int i = 0; i < nopeusTaulukkoKOKO; i++)//Keskiarvonlaskeminen taulukosta
-	{
-	nopeusSumma = nopeusSumma + nopeusTaulukko[i];
-	}
-	*/
 
 	nopeus = round(nopeusSumma / (float)nopeusTaulukkoKOKO);
 	nopeusIndeksi++;
@@ -598,6 +581,7 @@ void laheta()
 	sei();//allow interrupts
 }
 
+//Näytöltä tulevan datan vastaanotto.
 void vastaanota()
 {
 	char otsikko;
@@ -650,11 +634,10 @@ void valot()
 	//Vilkut
 	if (vilkkuPWM != vilkkuPois)
 	{
-		Serial.println("pitas vilkku");
-
+		//Serial.println("pitas vilkku");
 		if (millis() - vilkkuAika > vikkumisAika)
 		{
-			Serial.println("vilkku valmis");
+			//Serial.println("vilkku valmis");
 			vilkkuPWM = vilkkuPois;
 		}
 	}
@@ -677,6 +660,7 @@ void bensaTutkinta()
 	bensaIndeksi++;
 }
 
+//Näytölle menevien asetuksien lähetysfunktio.
 void alkuarvojenLahetys()
 {
 	char kuittaus = ' ';
@@ -696,12 +680,16 @@ void alkuarvojenLahetys()
 
 }
 
+//Kierrosten ADC-funktio
 void rpmADC()
 {
-	ADMUX = (0b01000000 | 1); //5V pin referenssinä ja luku 1
+	ADMUX = (0b01000000 | 1); //5V pin referenssinä ja lukee 1 kanavaa.
 	ADCSRA = 0b11001110; //Ennabloi AD, ajoon ja interupti. Prescailer 64	
 }
 
+
+//ADC-funktio
+//Parametrina
 int ADRead(uint8_t pin)
 {
 	ADMUX = (0b01000000 | pin); //5V pin referenssinä
