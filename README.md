@@ -4,7 +4,7 @@ Ominaisuuksia:
 - Nopeusmittari
 - Matka- ja trippimittari
 - Polttoainenmittari
-- Säädettävä nopeus rajoitin
+- Säädettävä nopeuden rajoitin
 - Vaihteen vaihto logiikka
 - Vaihde ilmaisin
 - Jarruvalot
