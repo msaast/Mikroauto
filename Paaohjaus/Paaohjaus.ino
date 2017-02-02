@@ -23,7 +23,7 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös 
 #define jarruKytkinPortti PINJ
 
 //Nopeus laskuri
-#difine nopeuspulssitPit 47 //PL2 ( T5 )
+#define nopeuspulssitPit 47 //PL2 ( T5 )
 
 //ADC
 #define bensaSensoriPin 0 //Bensa sensori potikka (A0)
