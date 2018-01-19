@@ -5,7 +5,7 @@
 #include <TFT_HX8357_Due.h>
 #include "Free_Fonts.h" 
 
-#include <UTouch.h>
+#include <URTouch.h>
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
@@ -20,7 +20,7 @@ extern unsigned short bensaIkoni[];
 // -----------------------------------------------------------
 // Standard Arduino Mega/Due shield            :  6, 5, 4, 3, 2
 
-UTouch  myTouch(6, 5, 4, 3, 2);
+URTouch  myTouch(6, 5, 4, 3, 2);
 
 #define xPikselit 480
 #define yPiksetlit 320
@@ -130,15 +130,17 @@ void setup()
 {
 	Serial.begin(57600);
 	Serial2.begin(115200);
-
+	
 	// Setup the LCD
 	tft.begin();
-	tft.setRotation(3);
+
+	tft.setRotation(1); //Vanha
+	//tft.setRotation(1); 
 	//Kosketus asetukset
 	myTouch.InitTouch();
 	myTouch.setPrecision(PREC_MEDIUM);
 
-	alkuarvojenHaku();
+	//alkuarvojenHaku();
 
 	//RPM-laskuja
 	pisteMaaraUlko = pisteetTaulukkoon(xK, yK, ulkoA, ulkuB, kehaPisteetUlko);

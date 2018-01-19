@@ -1,4 +1,4 @@
-/*Mikroauton p‰‰ojelma
+/*Mikroauton p‰‰ohjelma
 Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylˆs tai alas.
 
 */
@@ -192,7 +192,6 @@ void setup()
 
 	//kello2 aikakeskeytykset
 	//CTC, nollaa OCR, katto MAX
-	
 	TCCR2A = 0; 
 	TCCR2B = (1 << WGM12) | (1 << CS12) | (1 << CS10); //0b000001101
 	OCR2A = 16; //kierros ja muut softalaskurit, 1ms
@@ -274,11 +273,11 @@ void loop()
 	//if (vaihtaaVaihdetta == true)
 	if (vaihtoPWM != vaihtoPois) //Onko vaihto PWMm‰ on p‰‰ll‰ 
 	{
-		Serial.println("vaihedaan");
+		//Serial.println("vaihedaan");
 		//Tutkitaan kuinka kauan on vaihteenvaihtomoottorille annettu PWMm‰‰.
 		if (millis() - vaihdetaanVanhaAika > vaihtoAika)
 		{
-			Serial.println("Vaihde vaihdettu");
+			//Serial.println("Vaihde vaihdettu");
 			vaihtoPWM = vaihtoPois; //OC1 pois p‰‰lt‰
 			bitWrite(servoKytkenta, servoKytkentaBitti, LOW); //Servon jarru p‰‰lle, PIN8
 			//vaihtaaVaihdetta = false;
@@ -537,8 +536,8 @@ void rpmLaskuri()
 	rpmSumma = rpmSumma + kierrosLuku[kierrosIndeksi];
 
 	//TODO Tee oikea muunnos. Vaikka joku kerrointaulukko kun on saatu mitattua j‰nnitteit‰ eri taajuuksilla.
-	//rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
-	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
+	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
+	//rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
 	//Serial.println(rpm);
 	kierrosIndeksi++;
 }
