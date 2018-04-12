@@ -44,6 +44,13 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös 
 #define jarruValokytkenta PORTL
 #define jarruValokytkentaBitti PL3
 
+//Aikakeksytys ajat
+//(16 MHz : 8) kello 16 bitin laskurilla = 0,5 us 
+#define lyonti (double)(0.0000005) //0,5 us
+#define lyonnit_10ms (uint16_t)(0.010/lyonti) //10 ms : 0,5 us = 10 ms
+#define lyonnit_1ms (uint16_t)(0.001/lyonti) //1 ms
+#define rpmMittausväli 0xFFFF
+
 //Maskeja PWM kytkentään
 #define rajoitusPaalle 0b10000010
 #define rajoitusPois 0b11
@@ -102,11 +109,15 @@ const uint8_t vaihtoRaja3_2 = 50; //kh/h
 const uint8_t vaihtoRaja2_1 = 30; //kh/h
 
 //Globaalit muuttujat
+uint32_t kello0YlivuotoLaskuri = 0; //Kellon 32 ylintä bitti
+uint32_t millisekuntit = 0;
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
 volatile uint16_t rpmMuunnnos = 0;
 bool laskeNopeus = true;
 bool laskeKierrokset = true;
 bool laskeBensa = true;
+
+bool lippu10ms = true;
 
 //bool vaihtaaVaihdetta = false; //Vaihteen vaihtajan kuittas muuttuja
 bool rajoitusPaalla = false; //Kierrosten rajoittimen muuttuja
@@ -145,7 +156,7 @@ B10000000 =							*/
 #define jarruPojasssaBitti 2
 uint8_t boolLahetysTavu = 0; //Tavu millä voidaan lähettää 8 bool bittiä.
 
-uint16_t kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiavaja.
+uint16_t kierrosLuku[kierrosTaulukkoKOKO] = { 0 }; //Taulukko, johon tallennetaan kierroslukuja, että voidaan laskea keskiarvoja.
 uint8_t kierrosIndeksi = 0;
 uint8_t nopeusTaulukko[nopeusTaulukkoKOKO] = { 0 };
 uint8_t nopeusIndeksi = 0;
@@ -162,6 +173,15 @@ void setup()
 	Serial2.begin(115200);
 
 	alkuarvojenLahetys();
+
+	//Kello1
+	//Aikakeskeytys
+	OCR1A = lyonnit_1ms;
+	OCR1B = lyonnit_10ms;
+	//OCR1C = 
+	TCCR1A = 0b01010000; //Toggle A ja B, normaali laskri
+	TCCR1B = 0b00000010; //Jakaja 8, katto 0xFFFF : ylivuoto 32,768 ms
+	TIMSK1 = 0b00000111; //A ja B vertailu- ja ylivuotokesketys päällä
 
 	//PWM
 	//kello3 30Hz PIN5
@@ -182,26 +202,7 @@ void setup()
 	OCR4A = vilkkuNopeus; //PIN6, OCR4A, PH3
 	OCR4B = vilkkuNopeus; //PIN7, OCR4B, PH4
 
-	//kello1 80kHz B PIN9  ja A PIN10
-	pinMode(ylosVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto käsky ylös
-	pinMode(alasVaihtoKaskyPin, OUTPUT); //Vaiteen vaihto alas ylös
-	//Fast PWM, nollaa OCR, katto ICR, asetaa pojalla.  0b10100011;
-	TCCR1A = vaihtoPois; //0b10000010 A, 0b00100010 B = päällä
-	//TCCR1A = 0b10100010;
-	// Esijakaja 1.  0b00001001;
-	TCCR1B = 0b00011001;
-	ICR1 = 199;
-	OCR1A = 195; 
-	OCR1B = 195;
 
-	//kello2 aikakeskeytykset
-	//CTC, nollaa OCR, katto MAX
-	TCCR2A = 0; 
-	TCCR2B = (1 << WGM12) | (1 << CS12) | (1 << CS10); //0b000001101
-	OCR2A = 16; //kierros ja muut softalaskurit, 1ms
-	TCNT2 = 0; //Laskurinollaan
-	//Aika keskeytykset päälle. A-Kanava
-	TIMSK2 |= (1 << OCIE2A);
 
 	//kello5 ulkoisensignaalin laskuri
 	//Normaali laskuri, katto 16-bit max
@@ -365,22 +366,55 @@ void loop()
 	}
 }
 
-//Aikakeskeytys noin 1ms
-ISR(TIMER2_COMPA_vect)
+
+//********************Keskeytyspalvelut****************************//
+
+//Kello1, ylivuotokeskeytys
+//32 bit + 16 bit muuttuja 0,5 us askeleella = noin 1600 d = 4,5 a
+ISR(TIMER1_OVF_vect)
 {
-	rpmADC(); //Kierros ADC pöölle, jäädään oottamaa interuptia.
-	//Inkrementoidaan muita aikalaskureita.
-	nopeudenLaskentaAikaLaskuri++;
-	bensaMittausAikaLaskuri++;
+	kello0YlivuotoLaskuri++;
 }
 
-//Kierros ADC
-ISR(ADC_vect)
+//Kello1, A-vertailukeskeytys
+//1 ms, 1 ms * 2^32 = noin 4,9 d
+ISR(TIMER1_COMPA_vect)
 {
-	//Kierros ADC valmis.
-	rpmMuunnnos = ADC; //Otetaan muunnos muistiin.
-	laskeKierrokset = true; //Nostaan kierrosten laskulippu.
+	OCR1A = OCR1A + lyonnit_1ms;
+	millisekuntit++;
 }
+//Kello1, B-vertailukeskeytys
+//10 ms, hitaiden kytkimien ja sensoreiden luku
+ISR(TIMER1_COMPB_vect)
+{
+	lippu10ms = true;
+	OCR1B = OCR1B + lyonnit_1ms;
+}
+
+ISR(TIMER1_COMPC_vect)
+{
+	laskeKierrokset = true;
+	OCR1C = OCR1C + rpmMittausväli;
+}
+
+		//Aikakeskeytys noin 1ms
+		ISR(TIMER2_COMPA_vect)
+		{
+			rpmADC(); //Kierros ADC pöölle, jäädään oottamaa interuptia.
+			//Inkrementoidaan muita aikalaskureita.
+			nopeudenLaskentaAikaLaskuri++;
+			bensaMittausAikaLaskuri++;
+		}
+
+		//Kierros ADC
+		ISR(ADC_vect)
+		{
+			//Kierros ADC valmis.
+			rpmMuunnnos = ADC; //Otetaan muunnos muistiin.
+			laskeKierrokset = true; //Nostaan kierrosten laskulippu.
+		}
+
+
 
 /* Kirjoitettaan tarvittavat tiedot EEPROMiin talteen, kun virrat katkaistaan.
 Tutki millainen konkka tarvitaan pitämään virrat päällä tarpeekksi kauvan. */

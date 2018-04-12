@@ -140,6 +140,7 @@ void setup()
 	myTouch.InitTouch();
 	myTouch.setPrecision(PREC_MEDIUM);
 
+	//TODO Näyttön testauksen takia pois kommentoitu
 	//alkuarvojenHaku();
 
 	//RPM-laskuja
