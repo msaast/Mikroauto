@@ -394,11 +394,6 @@ ISR(TIMER1_COMPB_vect)
 	OCR1B = OCR1B + lyonnit_1ms;
 }
 
-ISR(TIMER1_COMPC_vect)
-{
-	laskeKierrokset = true;
-	OCR1C = OCR1C + rpmMittausväli;
-}
 
 	//Kierros ADC
 	ISR(ADC_vect)
