@@ -400,22 +400,13 @@ ISR(TIMER1_COMPC_vect)
 	OCR1C = OCR1C + rpmMittausväli;
 }
 
-		//Aikakeskeytys noin 1ms
-		ISR(TIMER2_COMPA_vect)
-		{
-			rpmADC(); //Kierros ADC pöölle, jäädään oottamaa interuptia.
-			//Inkrementoidaan muita aikalaskureita.
-			nopeudenLaskentaAikaLaskuri++;
-			bensaMittausAikaLaskuri++;
-		}
-
-		//Kierros ADC
-		ISR(ADC_vect)
-		{
-			//Kierros ADC valmis.
-			rpmMuunnnos = ADC; //Otetaan muunnos muistiin.
-			laskeKierrokset = true; //Nostaan kierrosten laskulippu.
-		}
+	//Kierros ADC
+	ISR(ADC_vect)
+	{
+		//Kierros ADC valmis.
+		rpmMuunnnos = ADC; //Otetaan muunnos muistiin.
+		laskeKierrokset = true; //Nostaan kierrosten laskulippu.
+	}
 
 
 
