@@ -174,6 +174,9 @@ void setup()
 
 	alkuarvojenLahetys();
 
+	//Kello0
+	TIMSK0 = 0; //Laitetaan Arduino-kirjaston millis() pois päältä.
+
 	//Kello1
 	//Aikakeskeytys
 	OCR1A = lyonnit_1ms;
@@ -183,15 +186,15 @@ void setup()
 	TCCR1B = 0b00000010; //Jakaja 8, katto 0xFFFF : ylivuoto 32,768 ms
 	TIMSK1 = 0b00000111; //A ja B vertailu- ja ylivuotokesketys päällä
 
-	//PWM
-	//kello3 30Hz PIN5
+	//Kello3
+	////PWM 30Hz PIN5
 	pinMode(rajoitusPWMpin, OUTPUT); //Nopeusrajoitus
-	//Fast PWM nolla OCR, katto ICR, asettaa ohjalla
+	//Fast PWM nolla OCR, katto ICR, asettaa pohjalla
 	TCCR3A = rajoitusPois; //0b10000011 A = päällä
 	TCCR3B = 0b00011101;
 	ICR3 = 520;
 	OCR3A = rajoitusAika;
-	//TIMSK3 |= (1 << TOIE3);
+	
 
 	//kello4 0,8Hz Hz A PIN6 ja B PIN7
 	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
