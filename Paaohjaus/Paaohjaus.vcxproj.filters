@@ -24,5 +24,8 @@
     <ClInclude Include="AVRfunktiota.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Pinnit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

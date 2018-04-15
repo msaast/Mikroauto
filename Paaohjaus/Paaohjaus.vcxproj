@@ -77,6 +77,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AVRfunktiota.h" />
+    <ClInclude Include="Pinnit.h" />
     <ClInclude Include="__vm\.Paaohjaus.vsarduino.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

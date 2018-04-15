@@ -1,15 +1,32 @@
 #pragma once
 
-#define ULOS 0
-#define KELLUU 1
-#define YLOSVETO 2
+#define ULOS_0 0
+#define ULOS_1 1
+#define KELLUU 2
+#define YLOSVETO 3
 
 
 
-void asetaPinninToiminto(uint8_t bitti, uint8_t PIN, uint8_t PORT, uint8_t toiminta)
+void pinninToiminto(uint8_t bitti, uint8_t DDR, uint8_t PORT, uint8_t toiminta)
 {
-	if (toiminta == 0)
+	if      (toiminta == ULOS_0)
 	{
-		PIN = PIN 
+		DDR = DDR | (1 << bitti);
+		PORT = PORT & (~(1 << bitti));
+	}
+	else if (toiminta == YLOSVETO)
+	{
+		DDR = DDR & (~(1 << bitti));
+		PORT = PORT | (1 << bitti);
+	}
+	else if (toiminta == KELLUU)
+	{
+		DDR = DDR & (~(1 << bitti));
+		PORT = PORT & (~(1 << bitti));
+	}
+	else if (toiminta == ULOS_1)
+	{
+		DDR = DDR | (1 << bitti);
+		PORT = PORT | (1 << bitti));
 	}
 }
