@@ -6,43 +6,160 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös 
 #include <Arduino.h>
 #include <EEPROM.h>
 
-//Pinnien paikat
-//interruptit
-//kunnon
-#define virratPoisPin 21 //PD0
-#define vaihtoKytkinYlosPin 19 //Ajajan vaihtokytkin ylös, PD2
-#define vaihtoKytkinAlasPin 20 //Ajajan vaihtokytkin alas, PD1
-#define vilkkuOikeaKytkinPin 18 //PD3
-#define vilkkuVasenKytkinPin 2 //PE4
-//tilanvaihto
-#define rajoitusKytkinPin 53 //Kierrostenrajoittimen avainkytkimen pinni, PB0
+//****************Pinnien paikat****************************
+//******Sisäänmenot
+
+//Ulkoiset keskeytykset
+#define virratPois 19 //Virtojen päällä olon tutkinta.
+#define virratPoisBitti PD2
+#define virratPoisPIN PIND
+#define virratPoisPORT PORTD
+
+#define vaihtoKytkinAlas 18 //Ajajan vaihtokytkin alas
+#define vaihtoKytkinAlasBitti PD3
+#define vaihtoKytkinAlasPIN PIND
+#define vaihtoKytkinAlasPORT PORTD
+
+#define vaihtoKytkinYlos 2 //Ajajan vaihtokytkin ylös
+#define vaihtoKytkinYlosBitti PE4
+#define vaihtoKytkinYlosPIN PINE
+#define vaihtoKytkinYlosPORT PORTE
+
+//tilanvaihtokeskeytyket
+#define rajoitusKytkin 53 //Kierrostenrajoittimen avainkytkimen pinni
 #define rajoitusKytkinBitti PB0
-#define rajoitusKytkinPortti PINB
-#define jarruKytkinPin 15 //Jarrukytkin, PJ0
+#define rajoitusKytkin PINB
+#define rajoitusKytkinPORT PORTB
+
+#define jarruKytkin 15 //Jarrukytkin
 #define jarruKytkinBitti PJ0
-#define jarruKytkinPortti PINJ
+#define jarruKytkinPIN PINJ
+#define jarruKytkinPORT PORTJ
 
 //Nopeus laskuri
-#define nopeuspulssitPit 47 //PL2 ( T5 )
+#define nopeuspulssit 47 //Kello5:n ulkoinen kellolähde (T5)
+#define nopeuspulssiBitti PL2
+#define nopeuspulssiPIN PINL
+#define nopeuspulssiPORT PORTL
+
+//Taajuuslaskuri RPM
+#define rpmSisaan 47
+#define rpmSisaanBitti PL0
+#define rpmSisaanPIN PINL
+#define rpmSisaanPORT PORTL
+
+//Digipinnit sisään
+#define vaihdeN 37
+#define vaihdeNBitti PC0
+#define vaihdeNPIN PINC
+
+#define vaihde1 36
+#define vaihde1Bitti PC1
+#define vaihde1PIN PINC
+#define vaihde1PORT PORTC
+
+#define vaihde2 35
+#define vaihde2Bitti PC2
+#define vaihde2PIN PINC
+#define vaihde2PORT PORTC
+
+#define vaihde3 42
+#define vaihde3Bitti PC3
+#define vaihde3PIN PC3
+#define vaihde3PORT PORTC
+
+#define vaihdeR 33
+#define vaihdeRBitti PC4
+#define vaihdeRPIN PINC
+#define vaihdeRPORT PORTC
+
+#define vilkkuOikeaKytkin 31 
+#define vilkkuOikeaKytkiBitti PC6
+#define vilkkuOikeaKytkiPIN PINC
+#define vilkkuOikeaKytkiPORT PORTC
+
+#define vilkkuVasenKytkin 30
+#define vilkkuVasenKytkinBitti PC7
+#define vilkkuVasenKytkinPIN PINC
+#define vilkkuVasenKytkiPORT PORTC
 
 //ADC
-#define bensaSensoriPin 0 //Bensa sensori potikka (A0)
-#define rpmADCPin 1
+#define bensaSensori A4 //Bensa sensori
+#define bensaSensoriBitti PF4
+#define bensaSensoriPIN PINF
+#define bensaSensoriPORT PORTF
 
-//PWM-pinnit (HUOM! Taajuuksia on vaihdettu, joten PWMmää on ohjattu suoraan rekisteriä manipuloimalla.)
-#define ylosVaihtoKaskyPin 11 //Käskys moottorille vaihtaa ylös. kello1 OC1A, PB5
-#define alasVaihtoKaskyPin 12 //Käskys moottorille vaihtaa alas. kello1 OC1B, PB6
-#define rajoitusPWMpin 5 //kello3 duty=OCR3A, PE3
-#define vilkkuOikeaPWMpin 6 //kello4 duty=OCR4A, PH3
-#define vilkkuVasenPWMpin 7 //kello4 duty=OCR4B, PH4
-//Digi output
-#define servoajuriKytkentaPin 8 //Servon kytkentä pinni, PH5
-#define servoKytkenta PORTH
-#define servoKytkentaBitti PH5
+#define akkuJannite A0 //Akun jännite
+#define akkuJanniteBitti PF0
+#define akkuJannitePIN PINF
+#define akkuJannitePORT PORTF
 
-#define jarruvaloPin 46 //PL3 
-#define jarruValokytkenta PORTL
-#define jarruValokytkentaBitti PL3
+//******Ulostulot
+
+//PWM
+#define rajoitusPWM 5 //Tappokytkimen kytkin
+#define rajoitusPWMBitti PE3
+#define rajoitusPWMPIN PINE
+#define rajoitusPWMPORT PORTE
+#define rajoitusPWMOCR OCR3A //kello3
+
+//Digi ulostulo
+#define vilkkureleVasen 22
+#define vilkkureleVasenBitti PA0
+#define vilkkureleVasenPIN PINA
+#define vilkkureleVasenPORT PORTA
+
+#define vilkkureleOikea 23
+#define vilkkureleOikeaBitti PA1
+#define vilkkureleOikeaPIN PINA
+#define vilkkureleOikeaPORT PORTA
+
+#define vaihtoKaskyAlas 24
+#define vaihtoKaskyAlasBitti PA2
+#define vaihtoKaskyAlasPIN PINA
+#define vaihtoKaskyAlasPORT PORTA
+
+#define vaihtoKaskyYlos 25
+#define vaihtoKaskyYlosBitti PA3
+#define vaihtoKaskyYlosPIN PINA
+#define vaihtoKaskyYlosPORT PORTA
+
+#define pakkipiipppi 26
+#define pakkipiipppiBitti PA4
+#define pakkipiipppiPIN PINA
+#define pakkipiipppiPORT PORTA
+
+#define virtalukonOhistus 27
+#define virtalukonOhistusBitti PA5
+#define virtalukonOhistusPIN PINA
+#define virtalukonOhistusPORT PORTA
+
+//*****Väylät
+
+//UART Duelle
+//TODO Varmaan tariii jotain muutakin, jos tekee joskus oman UART-toteutuksen.
+#define UARTDueRX 17
+#define UARTDueRXBitti PH0
+#define UARTDueRXPIN PINH
+#define UARTDueRXPORT PORTH
+
+#define UARTDueTX 16
+#define UARTDueTXBitti PH1
+#define UARTDueTXPIN PINH
+#define UARTDueTXPORT PORTh
+
+//I toiseen C
+//TODO Jos tämänkin tekee ite, pitää tutkia lisää
+#define I2CKello 21
+#define I2CKelloBitti PD0
+#define I2CKelloPIN PIND
+#define I2CKelloPORT PORTD
+
+#define I2CData 20
+#define I2CDataBitti PD1
+#define I2CDataPIN PIND
+#define I2CDataPORT PORTD
+//*****************************************************
 
 //Aikakeksytys ajat
 //(16 MHz : 8) kello 16 bitin laskurilla = 0,5 us 
@@ -56,15 +173,6 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös 
 #define rajoitusPois 0b11
 #define rajoitusPWM TCCR3A
 
-#define oikeallePaalle 0b01000000
-#define vasemmallePaalle 0b00010000
-#define vilkkuPois 0
-#define vilkkuPWM TCCR4A
-
-#define ylosPaalle 0b10000010
-#define alasPaalle 0b00100010
-#define vaihtoPois 0b10
-#define vaihtoPWM TCCR1A
 
 //Vakioita
 const double pii = 3.14159; //Pii
@@ -188,7 +296,7 @@ void setup()
 
 	//Kello3
 	////PWM 30Hz PIN5
-	pinMode(rajoitusPWMpin, OUTPUT); //Nopeusrajoitus
+	pinMode(rajoitusPWM, OUTPUT); //Nopeusrajoitus
 	//Fast PWM nolla OCR, katto ICR, asettaa pohjalla
 	TCCR3A = rajoitusPois; //0b10000011 A = päällä
 	TCCR3B = 0b00011101;
@@ -206,27 +314,26 @@ void setup()
 	OCR4B = vilkkuNopeus; //PIN7, OCR4B, PH4
 
 
-
 	//kello5 ulkoisensignaalin laskuri
 	//Normaali laskuri, katto 16-bit max
-	pinMode(nopeuspulssitPit, INPUT);
+	pinMode(nopeuspulssit, INPUT);
 	TCCR5A = 0;
 	TCCR5B = (1 << CS52) | (1 << CS51) | (1 << CS50); //0b00000111
 	TCCR5C = 0;
 
 	//Ulkoiset interuptit
-	pinMode(virratPoisPin, INPUT);
-	pinMode(vaihtoKytkinAlasPin, INPUT_PULLUP); //Vaihde alas kytkin
-	pinMode(vaihtoKytkinYlosPin, INPUT_PULLUP); //Vaihde ylos kytkin
-	pinMode(vilkkuOikeaKytkinPin, INPUT_PULLUP); //Vilkku oikealle kytkin
-	pinMode(vilkkuVasenKytkinPin, INPUT_PULLUP); //Villku vasemmalle kytkin
+	pinMode(virratPois, INPUT);
+	pinMode(vaihtoKytkinAlas, INPUT_PULLUP); //Vaihde alas kytkin
+	pinMode(vaihtoKytkinYlos, INPUT_PULLUP); //Vaihde ylos kytkin
+	pinMode(vilkkuOikeaKytkin, INPUT_PULLUP); //Vilkku oikealle kytkin
+	pinMode(vilkkuVasenKytkin, INPUT_PULLUP); //Villku vasemmalle kytkin
 	EICRA = 0b10101010; //10 laskeva reuna
 	EICRB = 0b10;
 	//EIMSK = 0b00011111; //Interuptimaski
 	EIMSK = 0b00011110; //ROMin kirjotus poissa
 
-	pinMode(jarruKytkinPin, INPUT_PULLUP); //Jaaruvalon kytkin vaihto interuptiks
-	pinMode(rajoitusKytkinPin, INPUT_PULLUP);
+	pinMode(jarruKytkin, INPUT_PULLUP); //Jaaruvalon kytkin vaihto interuptiks
+	pinMode(rajoitusKytkin, INPUT_PULLUP);
 	PCICR = 0b011; //Tilan muutosinterupt
 	PCMSK0 = 0b1; //Arduino PIN53
 	PCMSK1 = 0b10; //Arduino PIN15
@@ -679,7 +786,7 @@ void bensaTutkinta()
 
 	bensaSumma = bensaSumma - bensaTaulukko[bensaIndeksi];
 
-	bensaTaulukko[bensaIndeksi] = map(ADRead(bensaSensoriPin), 0, 1023, 0, bensapalkkiKorkeus);
+	bensaTaulukko[bensaIndeksi] = map(ADRead(bensaSensori), 0, 1023, 0, bensapalkkiKorkeus);
 
 	bensaSumma = bensaSumma + bensaTaulukko[bensaIndeksi];
 
