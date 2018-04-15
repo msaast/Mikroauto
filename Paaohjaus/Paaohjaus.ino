@@ -487,10 +487,11 @@ ISR(PCINT1_vect)
 	bitWrite(boolLahetysTavu, jarruPojasssaBitti, jarruPohjassa); ///Kirjoitetaan lähetystavuun jarrun tila.
 }
 
-char sarjaVali;
+//*******************************************************
+
 void serialEvent2()
 {
-	sarjaVali = Serial2.read();
+	char sarjaVali = Serial2.read();
 	if (sarjaVali == 'L')
 	{
 		laheta();
