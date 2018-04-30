@@ -9,22 +9,22 @@ Ohjelma laskee moottorin kierroslukua, auton nopeutta ja vaihtaa vaihteen ylös 
 
 #include "Pinnit.h"
 
-//Aikakeksytys ajat
+//Aikakeskeytys ajat
 //(16 MHz : 8) kello 16 bitin laskurilla = 0,5 us 
 #define lyonti (double)(0.0000005) //0,5 us
 #define lyonnit_10ms (uint16_t)(0.010/lyonti) //10 ms : 0,5 us = 10 ms
 #define lyonnit_1ms (uint16_t)(0.001/lyonti) //1 ms
-#define rpmMittausväli 0xFFFF
+#define rpmMittausvali 0xFFFF
 
-//Maskeja PWM kytkentään
+//Rajoitus PWM masekeja kytkentään
 #define rajoitusPaalle 0b10000010
 #define rajoitusPois 0b11
-#define rajoitusPWM TCCR3A
+#define rajoitusTCCRA TCCR3A
 
 
 //Vakioita
 const double pii = 3.14159; //Pii
-const uint8_t kierrosTaulukkoKOKO = 6;
+const uint8_t kierrosTaulukkoKOKO = 3;
 const uint8_t nopeusTaulukkoKOKO = 6;
 const uint8_t bensaTaulukkoKOKO = 20;
 
@@ -68,9 +68,16 @@ const uint8_t vaihtoRaja2_1 = 30; //kh/h
 uint32_t kello1YlivuotoLaskuri = 0; //Kellon 32 ylintä bitti
 uint32_t millisekuntit = 0;
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
-volatile uint16_t rpmMuunnnos = 0;
+uint8_t rpmPulssit = 0;
+uint8_t rpmPulssitLaskenta = 0;
+uint16_t rpmAlkuhetki = 0;
+uint16_t rpmLoppuhetki = 0;
+
 bool laskeNopeus = true;
-bool laskeKierrokset = true;
+
+uint8_t rpmMittaa = 0;
+bool rpmLaske = false;
+
 bool laskeBensa = true;
 
 bool lippu10ms = true;
@@ -135,32 +142,29 @@ void setup()
 
 	//Kello1
 	//Aikakeskeytys
+	//Tik 0,5 us, 0,5 us * 2^16 = 32,768 ms
 	OCR1A = lyonnit_1ms;
 	OCR1B = lyonnit_10ms;
-	//OCR1C = 
 	TCCR1A = 0b01010000; //Toggle A ja B, normaali laskri
-	TCCR1B = 0b00000010; //Jakaja 8, katto 0xFFFF : ylivuoto 32,768 ms
+	TCCR1B = 0b00000010; //Jakaja 8, katto 0xFFFF
 	TIMSK1 = 0b00000111; //A ja B vertailu- ja ylivuotokesketys päällä
 
 	//Kello3
-	////PWM 30Hz PIN5
-	pinMode(rajoitusPWM, OUTPUT); //Nopeusrajoitus
+	//PWM 30Hz
+	pinninToiminto(rajoitus, rajoitusDDR, rajoitusPORT, ULOS_0);
 	//Fast PWM nolla OCR, katto ICR, asettaa pohjalla
 	TCCR3A = rajoitusPois; //0b10000011 A = päällä
 	TCCR3B = 0b00011101;
 	ICR3 = 520;
-	OCR3A = rajoitusAika;
-	
+	rajoitusOCR = rajoitusAika;
 
-	//kello4 0,8Hz Hz A PIN6 ja B PIN7
-	pinMode(vilkkuOikeaPWMpin, OUTPUT); //Ulostulo oikelle vilkkureleelle
-	pinMode(vilkkuVasenPWMpin, OUTPUT); //Ulostulo vasemmalle vilkkureleelle
-	//CTC, tilanvaihto ja nollaus OCR, 50% kanttiaaltoa
-	TCCR4A = vilkkuPois; //0b0100000 A, 0b00010000 B = päälle
-	TCCR4B = 0b00001101;
-	OCR4A = vilkkuNopeus; //PIN6, OCR4A, PH3
-	OCR4B = vilkkuNopeus; //PIN7, OCR4B, PH4
-
+	//kello4
+	//Kierroslukusignaalin aikakaappus
+	//Tik 4 us, 4 us * 2^16 = 262,144 ms
+	pinninToiminto(rpmSisaanBitti, rpmSisaanBitti, rpmSisaanPORT, KELLUU);
+	TCCR4A = 0;//Ulostulos irti, normaali kellon laskenta
+	TCCR4B = 0b01000011; //Esijakaja 64, katto 0xFFFF
+	TIMSK4 = 0b00100000; //Kaappauskeskeytys
 
 	//kello5 ulkoisensignaalin laskuri
 	//Normaali laskuri, katto 16-bit max
@@ -212,12 +216,15 @@ void setup()
 
 void loop()
 {
-	//Aikakeskeytys liputtaa.
-	if (laskeKierrokset == true)
+	
+
+	if (rpmLaske == true || rpmMittaa > 2)
 	{
-		laskeKierrokset = false;
+		rpmLaske = false;
+		rpmMittaa = 0;
 		rpmLaskuri();
 	}
+
 	if (nopeudenLaskentaAikaLaskuri >= nopeudenLaskentaAika)
 	{
 		nopeudenLaskentaAikaLaskuri = 0;
@@ -233,7 +240,7 @@ void loop()
 	}
 
 	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
-	rajoitus();
+	rajoitusAli();
 
 	//if (vaihtaaVaihdetta == true)
 	if (vaihtoPWM != vaihtoPois) //Onko vaihto PWMmä on päällä 
@@ -329,9 +336,14 @@ void loop()
 
 //Kello1, ylivuotokeskeytys
 //32 bit + 16 bit muuttuja 0,5 us askeleella = noin 1600 d = 4,5 a
+//RPM laskenta väli on 32,768 ms
 ISR(TIMER1_OVF_vect)
 {
 	kello1YlivuotoLaskuri++;
+
+	//Jos moottori on sammunut, rpmMittaa kasvaa suureksi, kaapauskeskeytys ei nollaasitä.
+	//Tälläin pitää käydä laskemasssa kierrosluku nollaksi.
+	rpmMittaa++;
 }
 
 //Kello1, A-vertailukeskeytys
@@ -345,10 +357,27 @@ ISR(TIMER1_COMPA_vect)
 //10 ms, hitaiden kytkimien ja sensoreiden luku
 ISR(TIMER1_COMPB_vect)
 {
-	lippu10ms = true;
 	OCR1B = OCR1B + lyonnit_1ms;
+	lippu10ms = true;
 }
 
+//Kello4, aikakaappauskeskeytys
+//Moottorin kierrosluku lasketaan neljän mikrosekuntin tarkkuudella.
+//Kaappauskeskeytyksessä lasketaan kierrospulssit noin 30-60 millisekuntin ajalta.
+//Lasku aikaväli tulee kello1:ltä
+ISR(TIMER4_CAPT_vect)
+{
+	rpmPulssit++;
+	if (rpmMittaa > 0)
+	{
+		rpmAlkuhetki = rpmLoppuhetki;
+		rpmLoppuhetki = ICR5;
+		rpmPulssitLaskenta = rpmPulssit;
+		rpmPulssit = 0;
+		rpmLaske = true;
+		rpmMittaa = 0;
+	}
+}
 
 	//Kierros ADC
 	ISR(ADC_vect)
@@ -409,20 +438,15 @@ ISR(INT2_vect)
 	}
 }
 
-//Vilkku oikea
+
 ISR(INT3_vect)
 {
-	vilkkuPWM = oikeallePaalle; //Vilkku PWM pöölle.
-	vilkkuAika = millis(); //Aika muistiin.
-	//Serial.println("Vilkkuu oikea");
+
 }
 
-//Vilkku vasen
 ISR(INT4_vect)
 {
-	vilkkuPWM = vasemmallePaalle; //Vilkku PWM pöölle.
-	vilkkuAika = millis(); //Aika muistiin.
-	//Serial.println("Vilkkuu vasen");
+
 }
 
 /*Rajoitin kytkimen interrupt-funktio
@@ -511,18 +535,35 @@ void rpmLaskuri()
 	{
 		kierrosIndeksi = 0;
 	}
-
 	rpmSumma = rpmSumma - kierrosLuku[kierrosIndeksi];
 
+	//Pulssien välinen aika
+	uint16_t valiaika;
+	if (rpmAlkuhetki > rpmLoppuhetki)
+	{
+		//Laskuri on vuotanut yli.
+		valiaika = 0xFFFF - rpmLoppuhetki + rpmAlkuhetki;
+	}
+	else
+	{
+		valiaika = rpmLoppuhetki - rpmAlkuhetki;
+	}
+
+	//Lasketaan kierrostaajuus 4 mikrosekuniin tikeillä.
+	//(1000000 / 4 us) = (250000 / 1 tik) >>>> taajuus Hertseinä
+	//Kerrotaan vielä pulssien määrällä niin saadaan yhden kierroksen taajuus
+	float taajuus = (2500000 * rpmPulssitLaskenta) / float(valiaika);
+
+	//Nollataan laskenta pulssit, että kierroksista saadaan nolla, jos moottori on pois päältä.
+	rpmPulssitLaskenta = 0;
+
 	//Sijoitetaan arvot taulukkoon, josta lasketaan keskiarvo
-	//Lasketaan kierrosnopeus (1/min). n=1/t
-	kierrosLuku[kierrosIndeksi] = rpmMuunnnos;
+	//Muutetaan vielä kierrosta per minuutiksi
+	kierrosLuku[kierrosIndeksi] = round(60 * taajuus);
 	
 	rpmSumma = rpmSumma + kierrosLuku[kierrosIndeksi];
 
-	//TODO Tee oikea muunnos. Vaikka joku kerrointaulukko kun on saatu mitattua jännitteitä eri taajuuksilla.
-	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 140);
-	//rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)) * 10);
+	rpm = round((rpmSumma / float(kierrosTaulukkoKOKO)));
 	//Serial.println(rpm);
 	kierrosIndeksi++;
 }
@@ -681,22 +722,22 @@ int ADRead(uint8_t pin)
 	return ADC; //Palautetaan muunnettu luku
 }
 
-void rajoitus()
+void rajoitusAli()
 {
 	if ((rajoitusPaalla == true) || (vaihde == 'R'))
 	{
 		if ((nopeus > nopeusRajoitus) && (nopeus > pakkiRajoitus))
 		{
-			rajoitusPWM = rajoitusPaalle; //OC3A päälle, PIN5, PE3
+			rajoitusTCCRA = rajoitusPaalle; //OC3A päälle, PIN5, PE3
 		}
 		else
 		{
-			rajoitusPWM = rajoitusPois; //OC3A pois
+			rajoitusTCCRA = rajoitusPois; //OC3A pois
 		}
 	}
 	else
 	{
-		rajoitusPWM = rajoitusPois; //OC3A pois
+		rajoitusTCCRA = rajoitusPois; //OC3A pois
 	}
 
 }
