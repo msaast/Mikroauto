@@ -22,18 +22,22 @@
 #define vaihtoKytkinYlosPIN PINE
 #define vaihtoKytkinYlosPORT PORTE
 
+#define vaihtoKytkinINTmaski ((1UL << INT3) | (1UL << INT4))
+
 //tilanvaihtokeskeytyket
 #define rajoitusKytkin 53 //Kierrostenrajoittimen avainkytkimen pinni
 #define rajoitusKytkinBitti (1UL << PB0)
 #define rajoitusKytkinDDR DDRB
-#define rajoitusKytkin PINB
+#define rajoitusKytkinPIN PINB
 #define rajoitusKytkinPORT PORTB
+#define rajoitusKytkinPCINTbitti 0b1
 
 #define jarruKytkin 15 //Jarrukytkin
 #define jarruKytkinBitti (1UL << PJ0)
 #define jarruKytkinDDR DDRJ
 #define jarruKytkinPIN PINJ
 #define jarruKytkinPORT PORTJ
+#define jarruKytkinPCINTbitti 0b10
 
 //Nopeus laskuri
 #define nopeuspulssit 47 //Kello5:n ulkoinen kellolähde (T5)
@@ -80,6 +84,11 @@
 #define vaihdeRPIN PINC
 #define vaihdeRPORT PORTC
 
+#define vaihdeBititMaski (vaihdeNBitti | vaihde1Bitti | vaihde2Bitti | vaihde3Bitti | vaihdeRBitti)
+#define vaihdeDDR DDRC
+#define vaihdePIN PINC
+#define vaihdePORT PORTC
+
 #define vilkkuOikeaKytkin 31 
 #define vilkkuOikeaKytkiBitti (1UL << PC6)
 #define vilkkuOikeaKytkiDDR DDRC
@@ -98,6 +107,7 @@
 #define bensaSensoriDDR DDRF
 #define bensaSensoriPIN PINF
 #define bensaSensoriPORT PORTF
+#define bensaSensori
 
 #define akkuJannite A0 //Akun jännite
 #define akkuJanniteBitti (1UL << PF0)

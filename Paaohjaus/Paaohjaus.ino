@@ -40,13 +40,14 @@ B00001 >> 1 = B00000 = 0
 Indeksoidaan talukosta oikea vaihde.
 */
 const char vaihteet[] = "N12x3xxxR";
+#define lueVaihde vaihteet[(vaihdePIN ^ vaihdeBititMaski) >> 1]
 
 //Asetuksia
 const float pyoraHalkaisija = 0.3; //Pyörän halkaisija metreinä.
 const uint16_t vaihtoRpm = 1800; //Moottorin kierrosnopeus, jonka alle ollessa saa vaihtaa vaihteen (1/min).
 const uint16_t pulssitPerKierrosNopeus = 20; //Montako pulssia tulee per kierros (nopeus).
-const uint16_t vaihtoNappiAika = 1000; //Aika minkä vaihto napin on oltava ylhäällä että voidaan uudestaa koittaa vaihtaan vaihetta.
-const uint16_t vaihtoAika = 2000; //Vaihtopulssin kesto
+#define vaihtoAika 200 //200 * 10 ms, Vaihtopulssin kesto TODO pitää testata mikä on hyvä aika
+
 const uint16_t nopeudenLaskentaAika = 100;
 const uint16_t bensaMittausAika = 3000; //3s
 const uint16_t rajoitusAika = 400;
@@ -67,34 +68,42 @@ const uint8_t vaihtoRaja2_1 = 30; //kh/h
 //Globaalit muuttujat
 uint32_t kello1YlivuotoLaskuri = 0; //Kellon 32 ylintä bitti
 uint32_t millisekuntit = 0;
+
 volatile uint16_t nopeusPulssit = 0; //Muuttuja johon lasketaan pyörältä tulleet pulssit.
+bool laskeNopeus = true;
+
 uint8_t rpmPulssit = 0;
 uint8_t rpmPulssitLaskenta = 0;
 uint16_t rpmAlkuhetki = 0;
 uint16_t rpmLoppuhetki = 0;
-
-bool laskeNopeus = true;
-
 uint8_t rpmMittaa = 0;
 bool rpmLaske = false;
 
-bool laskeBensa = true;
+#define jarruKytkinVarahtelyAika 2 //2 * 10 ms, Kytkinvärähtely jäähy
+uint8_t jarruKytkinVarahtelyLaskin = 0;
+
+#define rajoitusKytkinVarahtelyAika 2 //2 * 10 ms, Kytkinvärähtely jäähy
+uint8_t rajoitusKytkinVarahtelyLaski = 0;
 
 bool lippu10ms = true;
 
-//bool vaihtaaVaihdetta = false; //Vaihteen vaihtajan kuittas muuttuja
 bool rajoitusPaalla = false; //Kierrosten rajoittimen muuttuja
-bool vaihtoNappiYlhaalla = true; //
 bool liikaaKierroksia = false;
 
-unsigned long vaihdetaanVanhaAika = 0;
-volatile unsigned long vaihtoNappiVanhaAika = 0; //
+
 unsigned long nopeusPulssitAika = 0; //Aika jolloin aloitettiin laskemaan nopeus pulsseja.
 volatile unsigned long vilkkuAika = 0;
 volatile uint16_t nopeudenLaskentaAikaLaskuri = 0;
 volatile uint16_t bensaMittausAikaLaskuri = 0;
-bool vaihdeKytkinYlos = false; //Vaihteen vaihto kytkin ylös tila
-bool vaihdeKytkinAlas = false; //Vaihteen vaihto kytkin alas tila
+
+#define vaihtoKytkinTilaKeski 0
+#define vaihtoKytkinTilaAlas 1
+#define vaihtoKytkinTilaYlos 2
+#define vaihtoAlas 1
+#define vaihtoYlos 2
+uint8_t vaihtoKytkinTila = 0; //0 = keskellä, 1 = alas vaihto, 2 ylös vaihto
+uint8_t vaihtoAikaLaskuri = 0;
+
 uint8_t nopeus = 0; //Auton nopeus (km/h)
 uint16_t rpm = 0; //Moottorin kierrosnopeus (1/min)
 uint8_t nopeusRajoitus = 20;
@@ -132,6 +141,9 @@ double bensaSumma = 0;
 
 void setup()
 {
+	//Virtalukon ohitus asetukset ja FET-laitetaan johtavaan tilaan saman tien.
+	pinninToiminto(virtalukonOhistusBitti, &virtalukonOhistusDDR, &virtalukonOhistusPORT, ULOS_1);
+
 	Serial.begin(57600);
 	Serial2.begin(115200);
 
@@ -151,7 +163,7 @@ void setup()
 
 	//Kello3
 	//PWM 30Hz
-	pinninToiminto(rajoitus, rajoitusDDR, rajoitusPORT, ULOS_0);
+	pinninToiminto(rajoitus, &rajoitusDDR, &rajoitusPORT, ULOS_0);
 	//Fast PWM nolla OCR, katto ICR, asettaa pohjalla
 	TCCR3A = rajoitusPois; //0b10000011 A = päällä
 	TCCR3B = 0b00011101;
@@ -161,46 +173,49 @@ void setup()
 	//kello4
 	//Kierroslukusignaalin aikakaappus
 	//Tik 4 us, 4 us * 2^16 = 262,144 ms
-	pinninToiminto(rpmSisaanBitti, rpmSisaanBitti, rpmSisaanPORT, KELLUU);
+	pinninToiminto(rpmSisaanBitti, &rpmSisaanDDR, &rpmSisaanPORT, KELLUU);
 	TCCR4A = 0;//Ulostulos irti, normaali kellon laskenta
 	TCCR4B = 0b01000011; //Esijakaja 64, katto 0xFFFF
 	TIMSK4 = 0b00100000; //Kaappauskeskeytys
 
 	//kello5 ulkoisensignaalin laskuri
 	//Normaali laskuri, katto 16-bit max
-	pinMode(nopeuspulssit, INPUT);
+	pinninToiminto(nopeuspulssiBitti, &nopeuspulssiDDR, &nopeuspulssiPORT, KELLUU);
 	TCCR5A = 0;
 	TCCR5B = (1 << CS52) | (1 << CS51) | (1 << CS50); //0b00000111
 	TCCR5C = 0;
 
 	//Ulkoiset interuptit
-	pinMode(virratPois, INPUT);
-	pinMode(vaihtoKytkinAlas, INPUT_PULLUP); //Vaihde alas kytkin
-	pinMode(vaihtoKytkinYlos, INPUT_PULLUP); //Vaihde ylos kytkin
-	pinMode(vilkkuOikeaKytkin, INPUT_PULLUP); //Vilkku oikealle kytkin
-	pinMode(vilkkuVasenKytkin, INPUT_PULLUP); //Villku vasemmalle kytkin
-	EICRA = 0b10101010; //10 laskeva reuna
-	EICRB = 0b10;
-	//EIMSK = 0b00011111; //Interuptimaski
-	EIMSK = 0b00011110; //ROMin kirjotus poissa
+	//INT2
+	pinninToiminto(virratPoisBitti, &virratPoisDDR, &virratPoisPORT, YLOSVETO);
+	//INT3
+	pinninToiminto(vaihtoKytkinAlasBitti, &vaihtoKytkinAlasDDR, &vaihtoKytkinAlasPORT, YLOSVETO);
+	//INT4
+	pinninToiminto(vaihtoKytkinYlosBitti, &vaihtoKytkinYlosDDR, &vaihtoKytkinYlosPORT, YLOSVETO);
 
-	pinMode(jarruKytkin, INPUT_PULLUP); //Jaaruvalon kytkin vaihto interuptiks
-	pinMode(rajoitusKytkin, INPUT_PULLUP);
-	PCICR = 0b011; //Tilan muutosinterupt
-	PCMSK0 = 0b1; //Arduino PIN53
-	PCMSK1 = 0b10; //Arduino PIN15
+	EICRA = 0b10100000; //Keskeytykset 2 ja 3 laskevalla reunalla
+	EICRB = 0b10;//Keskeytys 4 laskevalla reunalla
+	EIMSK = 0b00011100; //Interuptimaski
+	//EIMSK = 0b0011000; //ROMin kirjotus poissa
+
+	//PCINT0 tilanvaihto keskeytys
+	pinninToiminto(jarruKytkinBitti, &jarruKytkinDDR, &jarruKytkinPORT, KELLUU);
+	//PCINT9 tilanvaihto keskeytys
+	pinninToiminto(rajoitusKytkinBitti, &rajoitusKytkinDDR, &rajoitusKytkinPORT, YLOSVETO);
+
+	PCICR = 0b11; //0 ja 1 tilamuutos joukot päällä
+	PCMSK0 = 0b1; //0 joukosta PCINT0 päällä
+	PCMSK1 = 0b10; //1 joukosta PCINT9 päällä
 
 	//Vaihteet INPUT PULLUP
-	DDRC = 0;
-	PORTC = 0xFF;
-
-	pinMode(jarruvaloPin, OUTPUT); //Ulostulo jarruvalon releelle
-	pinMode(servoajuriKytkentaPin, OUTPUT); //Servon kytkentä
+	pinninToiminto(vaihdeBititMaski, &vaihdeDDR, &vaihdePORT, YLOSVETO);
+	vaihde = lueVaihde;
 
 	DIDR0 = 0b11; //Anologi päälle A0, A1
 
-	rajoitusPaalla = bitRead(rajoitusKytkinPortti, jarruKytkinBitti); //Mikä on rajoituskykimen tila
-	bitWrite(boolLahetysTavu, rajoitusBitti, rajoitusPaalla);
+	//Mikä on rajoituskykimen tila, kun laitettaan virrat päällle
+	rajoitusPaalla = ~(lueBitti(rajoitusKytkinPIN, rajoitusKytkinBitti)); 
+	kirjoitaBitti(boolLahetysTavu, rajoitusBitti, rajoitusPaalla);
 
 	lueROM();
 
@@ -217,7 +232,6 @@ void setup()
 void loop()
 {
 	
-
 	if (rpmLaske == true || rpmMittaa > 2)
 	{
 		rpmLaske = false;
@@ -225,109 +239,140 @@ void loop()
 		rpmLaskuri();
 	}
 
-	if (nopeudenLaskentaAikaLaskuri >= nopeudenLaskentaAika)
+	//10 ms:n ja sen kerrannaisten välein tapahtuvat asiat
+	if (lippu10ms == true)
 	{
-		nopeudenLaskentaAikaLaskuri = 0;
-		nopeusLaskuri();
-		valot();
-		
-		vaihde = vaihteet[(PINC ^ 0xFF) >> 1]; //Mega
-	}
-	if (bensaMittausAikaLaskuri >= bensaMittausAika)
-	{
-		bensaMittausAikaLaskuri = 0;
-		bensaTutkinta();
-	}
+		lippu10ms = false;
 
-	//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
-	rajoitusAli();
-
-	//if (vaihtaaVaihdetta == true)
-	if (vaihtoPWM != vaihtoPois) //Onko vaihto PWMmä on päällä 
-	{
-		//Serial.println("vaihedaan");
-		//Tutkitaan kuinka kauan on vaihteenvaihtomoottorille annettu PWMmää.
-		if (millis() - vaihdetaanVanhaAika > vaihtoAika)
+		//
+		if (vaihtoAikaLaskuri > 0) //Onko vaihtoo vaihto vielä meneillään
 		{
-			//Serial.println("Vaihde vaihdettu");
-			vaihtoPWM = vaihtoPois; //OC1 pois päältä
-			bitWrite(servoKytkenta, servoKytkentaBitti, LOW); //Servon jarru päälle, PIN8
-			//vaihtaaVaihdetta = false;
-		}
-	}
+			//Serial.println("vaihedaan");
 
-	//Vaihteen vaihtoon mennää, jos jompaa kumpaa vaihto nappia on painettu .
-	if (vaihdeKytkinAlas == true || vaihdeKytkinYlos == true)//Aika rajoitus
-	{
-		//if (vaihtaaVaihdetta == false)
-		if (vaihtoPWM == vaihtoPois)
-		{
-			//TODO  Mieti vaihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
-			//Mietin yhden kerran ja tulin siihen tulokseen, että ei välttämättä tarvii.
-			//Kovassa vauhdissa liian pienelle vahtaminen lienee suurin ongelma, mutta se nyt ei ole kovin vaarallista.
+			vaihtoAikaLaskuri--;
 
-			if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
+			if (vaihtoAikaLaskuri == 0)
 			{
-				bitWrite(boolLahetysTavu, liikaaRPMbitti, LOW);
+				//Vaihteen vaihto pois päältä
+				nollaaBitti(vaihtoKaskyAlasPORT, vaihtoKaskyAlasBitti);
+				nollaaBitti(vaihtoKaskyYlosPORT, vaihtoKaskyYlosBitti);
 
-				switch (vaihde)
-				{
-					case 'R': //Pakilta annetaan vaihtaa vain ylös päin.
-						if (vaihdeKytkinYlos == true)
-						{
-							vaihtoKasky(ylosVaihtoKaskyPin);
-						}
-						break;
-					case 'N': //Vappaalta voi vaihtaa kumpaankin suuntaa, mutta jarru pitää olla painettuna.
+				//Nollataan keskeytysliput värähtelyistä.
+				nollaaBitti(EIFR, vaihtoKytkinINTmaski);
+				//Sallitaan taas vaihtokytkimien keskeytykset.
+				asetaBitti(EIMSK, vaihtoKytkinINTmaski);
 
-						if (vaihdeKytkinAlas == true && jarruPohjassa == true)
-						{
-							vaihtoKasky(alasVaihtoKaskyPin);
-						}
-						else if (vaihdeKytkinYlos == true && jarruPohjassa == true)
-						{
-							vaihtoKasky(ylosVaihtoKaskyPin);
-						}
-						break;
-					case '1': //Ykköseltä voi vaihtaa kumpaankin suuntaa.
-						if (vaihdeKytkinAlas == true)
-						{
-							vaihtoKasky(alasVaihtoKaskyPin);
-						}
-						else if (vaihdeKytkinYlos == true)
-						{
-							vaihtoKasky(ylosVaihtoKaskyPin);
-						}
-						break;
-					case '2': //Kakkoselta voi vaihtaa kumpaankin suuntaa.
-						if (vaihdeKytkinAlas == true)
-						{
-							vaihtoKasky(alasVaihtoKaskyPin);
-						}
-						else if (vaihdeKytkinYlos == true)
-						{
-							vaihtoKasky(ylosVaihtoKaskyPin);
-						}
-						break;
-					case '3': //Kolmeoselta voi vaihtaa vain alas päin.
-						if (vaihdeKytkinAlas == true)
-						{
-							vaihtoKasky(alasVaihtoKaskyPin);
-						}
-						break;
-					default:
-						break;
-				}
-			}
-			else
-			{
-				bitWrite(boolLahetysTavu, liikaaRPMbitti, HIGH); //Kirjoitettaan lähetystavuun, että liikaa kierroksia vaihteen vaihtoon.
-												 //Kaasu ylös!!
+				//Tutkitaan mikä vaihde on nyt päällä
+				vaihde = lueVaihde;
 			}
 		}
 
-		vaihdeKytkinAlas = false;
-		vaihdeKytkinYlos = false;
+		//
+		if (nopeudenLaskentaAikaLaskuri >= nopeudenLaskentaAika)
+		{
+			nopeudenLaskentaAikaLaskuri = 0;
+			nopeusLaskuri();
+			valot();
+		}
+
+		//
+		if (bensaMittausAikaLaskuri >= bensaMittausAika)
+		{
+			bensaMittausAikaLaskuri = 0;
+			bensaTutkinta();
+		}
+
+		//Jos nopeusrajoitus on päällä rajoitetaan nopeutta.
+		rajoitusAli();
+
+		if (jarruKytkinVarahtelyLaskin > 0)
+		{
+			jarruKytkinVarahtelyLaskin--;
+			if (jarruKytkinVarahtelyLaskin == 0)
+			{
+				asetaBitti(PCICR, jarruKytkinPCINTbitti);//Sallitaan keskeytys
+				nollaaBitti(PCIFR, jarruKytkinPCINTbitti);//Nollataan keskeytyslippu
+			}
+		}
+		if (rajoitusKytkinVarahtelyLaski > 0)
+		{
+			rajoitusKytkinVarahtelyLaski--;
+			if (rajoitusKytkinVarahtelyLaski == 0)
+			{
+				asetaBitti(PCICR, rajoitusKytkinPCINTbitti);//Sallitaan keskeytys
+				nollaaBitti(PCIFR, rajoitusKytkinPCINTbitti);//Nollataan keskeytyslippu
+			}
+		}
+
+	}
+
+
+	//Vaihteen vaihtoon mennään, jos jompaa kumpaa vaihto nappia on painettu .
+	if (vaihtoKytkinTila > vaihtoKytkinTilaKeski)//Aika rajoitus
+	{
+		//TODO  Mieti vaihteen vaihto rajoitukset kunnolla. Nopeuden ja vaihteen suhteen tai joitan.
+		//Mietin yhden kerran ja tulin siihen tulokseen, että ei välttämättä tarvii.
+		//Kovassa vauhdissa liian pienelle vahtaminen lienee suurin ongelma, mutta se nyt ei ole kovin vaarallista.
+
+		if (rpm < vaihtoRpm) //Päästään vaihtamaan jos moottorin kierrosnopeus on tietyn rajan alle.
+		{
+			bitWrite(boolLahetysTavu, liikaaRPMbitti, LOW);
+
+			switch (vaihde)
+			{
+				case 'R': //Pakilta annetaan vaihtaa vain ylös päin.
+					if (vaihtoKytkinTila == vaihtoKytkinTilaYlos)
+					{
+						vaihtoKasky(vaihtoYlos);
+					}
+					break;
+				case 'N': //Vappaalta voi vaihtaa kumpaankin suuntaa, mutta jarru pitää olla painettuna.
+
+					if ((vaihtoKytkinTila == vaihtoKytkinTilaAlas) && (jarruPohjassa == true))
+					{
+						vaihtoKasky(vaihtoAlas);
+					}
+					else if ((vaihtoKytkinTila == vaihtoKytkinTilaYlos) && (jarruPohjassa == true))
+					{
+						vaihtoKasky(vaihtoYlos);
+					}
+					break;
+				case '1': //Ykköseltä voi vaihtaa kumpaankin suuntaa.
+					if (vaihtoKytkinTila == vaihtoKytkinTilaAlas)
+					{
+						vaihtoKasky(vaihtoAlas);
+					}
+					else if (vaihtoKytkinTila == vaihtoKytkinTilaYlos)
+					{
+						vaihtoKasky(vaihtoYlos);
+					}
+					break;
+				case '2': //Kakkoselta voi vaihtaa kumpaankin suuntaa.
+					if (vaihtoKytkinTila == vaihtoKytkinTilaAlas)
+					{
+						vaihtoKasky(vaihtoAlas);
+					}
+					else if (vaihtoKytkinTila == vaihtoKytkinTilaYlos)
+					{
+						vaihtoKasky(vaihtoYlos);
+					}
+					break;
+				case '3': //Kolmeoselta voi vaihtaa vain alas päin.
+					if (vaihtoKytkinTila == vaihtoKytkinTilaAlas)
+					{
+						vaihtoKasky(vaihtoAlas);
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		else
+		{
+			asetaBitti(boolLahetysTavu, liikaaRPMbitti); //Kirjoitettaan lähetystavuun, että liikaa kierroksia vaihteen vaihtoon.
+				//Kaasu ylös!!
+		}
+		vaihtoKytkinTila = vaihtoKytkinTilaKeski;
 	}
 }
 
@@ -341,7 +386,7 @@ ISR(TIMER1_OVF_vect)
 {
 	kello1YlivuotoLaskuri++;
 
-	//Jos moottori on sammunut, rpmMittaa kasvaa suureksi, kaapauskeskeytys ei nollaasitä.
+	//Jos moottori on sammunut, rpmMittaa kasvaa suureksi, kaapauskeskeytys ei nollaa sitä.
 	//Tälläin pitää käydä laskemasssa kierrosluku nollaksi.
 	rpmMittaa++;
 }
@@ -391,7 +436,7 @@ ISR(TIMER4_CAPT_vect)
 
 /* Kirjoitettaan tarvittavat tiedot EEPROMiin talteen, kun virrat katkaistaan.
 Tutki millainen konkka tarvitaan pitämään virrat päällä tarpeekksi kauvan. */
-ISR(INT0_vect)
+ISR(INT2_vect)
 {
 	cli();
 	int osoite = 0;
@@ -410,6 +455,10 @@ ISR(INT0_vect)
 	Serial.print("\n");
 	Serial.println(nopeusRajoitus, DEC);
 	*/
+
+	//Laitetaan virtalukon ohitus pois päältä
+	nollaaBitti(virtalukonOhistusPORT, virtalukonOhistusBitti);
+
 	//Otetaan että virrat katkee
 	while (true)
 	{
@@ -417,53 +466,39 @@ ISR(INT0_vect)
 }
 
 //Vaihto alas
-ISR(INT1_vect)
+ISR(INT3_vect)
 {
-	if ((millis() - vaihtoNappiVanhaAika) > vaihtoNappiAika)
-	{
-		vaihdeKytkinAlas = true;
-		vaihtoNappiVanhaAika = millis();
-		//Serial.println("Alas vahtaa");
-	}
+	//Estetään kytkinten keskeytykset kunnes vaihde on vaihdettu.
+	nollaaBitti(EIMSK, vaihtoKytkinINTmaski);
+	vaihtoKytkinTila = vaihtoKytkinTilaAlas;
 }
 
 //Vaihto ylös
-ISR(INT2_vect)
-{
-	if ((millis() - vaihtoNappiVanhaAika) > vaihtoNappiAika)
-	{
-		vaihdeKytkinYlos = true;
-		vaihtoNappiVanhaAika = millis();
-		//Serial.println("Ylos vahtaa");
-	}
-}
-
-
-ISR(INT3_vect)
-{
-
-}
-
 ISR(INT4_vect)
 {
-
+	//Estetään kytkinten keskeytykset kunnes vaihde on vaihdettu.
+	nollaaBitti(EIMSK, vaihtoKytkinINTmaski);
+	vaihtoKytkinTila = vaihtoKytkinTilaYlos;
 }
 
 /*Rajoitin kytkimen interrupt-funktio
 Kun kytkimen tila muuttuu muutetaan "rajoitus" muuttujaa ja jos rajoitin laitetaan pois päältä poistetaan rajoitus.*/
 ISR(PCINT0_vect)
 {
-	rajoitusPaalla = bitRead(rajoitusKytkinPortti, jarruKytkinBitti); //Mikä on rajoituskykimen tila
+	rajoitusPaalla = lueBitti(rajoitusKytkinPIN, rajoitusKytkinBitti); //Mikä on rajoituskykimen tila
 	bitWrite(boolLahetysTavu, rajoitusBitti, rajoitusPaalla);
+	nollaaBitti(PCICR, rajoitusKytkinPCINTbitti);//Estetään keskeytykset
+	rajoitusKytkinVarahtelyLaski = rajoitusKytkinVarahtelyAika;
 }
 
-//Jarrun tilan tutkinta interupti
+//Jarrun tilan tutkinta interrupti
 ISR(PCINT1_vect)
 {
 	//Pinni on ylös vedetty niin pitää kääntää sen tila, että tämä toimii niin kun olen ajatellu sen alunpittäin.
-	jarruPohjassa = bitRead(jarruKytkinPortti, jarruKytkinBitti) ^ true;
-	bitWrite(jarruValokytkenta, jarruValokytkentaBitti, jarruPohjassa);
-	bitWrite(boolLahetysTavu, jarruPojasssaBitti, jarruPohjassa); ///Kirjoitetaan lähetystavuun jarrun tila.
+	jarruPohjassa = ~(lueBitti(jarruKytkinPIN, jarruKytkinBitti));
+	kirjoitaBitti(boolLahetysTavu, jarruPojasssaBitti, jarruPohjassa); ///Kirjoitetaan lähetystavuun jarrun tila.
+	nollaaBitti(PCICR, jarruKytkinPCINTbitti);//Estetään keskeytykset
+	jarruKytkinVarahtelyLaskin = jarruKytkinVarahtelyAika;
 }
 
 //*******************************************************
@@ -568,18 +603,17 @@ void rpmLaskuri()
 	kierrosIndeksi++;
 }
 
-void vaihtoKasky(uint8_t kaskyPin)
+void vaihtoKasky(const uint8_t suunta)
 {
-	bitWrite(servoKytkenta, servoKytkentaBitti, HIGH); //Servon jarru pois PIN8
-	if (kaskyPin == ylosVaihtoKaskyPin)
+	if (suunta == vaihtoAlas)
 	{
-		vaihtoPWM = ylosPaalle; //OC1A päälle
+		asetaBitti(vaihtoKaskyAlasPORT, vaihtoKaskyAlasBitti);
 	}
-	else if (kaskyPin == alasVaihtoKaskyPin)
+	else if (suunta == vaihtoYlos)
 	{
-		vaihtoPWM = alasPaalle; //OC1B päälle
+		asetaBitti(vaihtoKaskyYlosPORT, vaihtoKaskyYlosBitti);
 	}
-	vaihdetaanVanhaAika = millis();
+	vaihtoAikaLaskuri = vaihtoAika;
 }
 
 void laheta()
