@@ -27,5 +27,11 @@
     <ClInclude Include="Pinnit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Keskeytykset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Aliohjelmat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

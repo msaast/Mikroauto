@@ -9,6 +9,8 @@
 #define asetaBitti(tavu, bitti) ((tavu) |= (bitti))
 #define lueBitti(tavu, bitti) (((tavu) & (bitti)) ? (1) : (0))
 #define kirjoitaBitti(tavu, bitti, tila) (tila ? asetaBitti(tavu, bitti) : nollaaBitti(tavu, bitti))
+#define kaannaBitti(tavu, bitti) ((tavu) ^= (bitti))
+#define lueTavu(tavu, maski) ((tavu) &= (maski))
 
 //Pinnin tominnon asetusfunktio
 //

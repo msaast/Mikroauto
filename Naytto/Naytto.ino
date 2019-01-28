@@ -11,6 +11,7 @@
 
 TFT_HX8357_Due tft = TFT_HX8357_Due();
 
+
 extern unsigned short aareton[];
 extern unsigned short bensaIkoni[];
 
@@ -21,6 +22,7 @@ extern unsigned short bensaIkoni[];
 // Standard Arduino Mega/Due shield            :  6, 5, 4, 3, 2
 
 URTouch  myTouch(6, 5, 4, 3, 2);
+
 
 #define xPikselit 480
 #define yPiksetlit 320
@@ -100,10 +102,10 @@ const int trippiNollausAika = 750;
 
 //--------Näytettävät arvot
 int rpm = 0, rpmEdellinen = 0, rpmVali = 0; //Moottorin kierrosnopeus (1/min)
-int nopeus = 8, nopeusEdellinen = 0;
-char vaihde = 'N', vaihdeEdellinen = 'A';
-int matka = 34, matkaEdellinen = 0;
-unsigned int trippi = 12200, trippiEdellinen = 0;
+int nopeus = 0, nopeusEdellinen = 0;
+char vaihde = 'N', vaihdeEdellinen = 'N';
+int matka = 0, matkaEdellinen = 0;
+unsigned int trippi = 0, trippiEdellinen = 0;
 uint8_t rajoitus = 10, rajoitusEdellinen = 0;
 bool rajoitusPaalla = false, rajoitusPaallaEdellinen = true;
 int bensa = 0, bensaEdellinen = 1;
@@ -116,7 +118,6 @@ bool uudetArvot = true;
 float fps = 0;
 unsigned long fpsVanha = 0;
 int kierto = 0;
-
 
 //----------Funktioiden otsikot
 int pisteetTaulukkoon(int xKeski, int yKeski, int a, int b, short kehaPisteet[RIVIT][MAXPISTEET]);
@@ -140,8 +141,11 @@ void setup()
 	myTouch.InitTouch();
 	myTouch.setPrecision(PREC_MEDIUM);
 
+	tft.fillScreen(TFT_BLACK);
+	tft.fillScreen(mittarinTaustaVari);
+
 	//TODO Näyttön testauksen takia pois kommentoitu
-	//alkuarvojenHaku();
+	alkuarvojenHaku();
 
 	//RPM-laskuja
 	pisteMaaraUlko = pisteetTaulukkoon(xK, yK, ulkoA, ulkuB, kehaPisteetUlko);
@@ -172,6 +176,7 @@ void loop()
 		loopViimeAika = millis();
 		//Tietojenhaku
 		Serial2.write('L');
+		Serial.println("uusien haku");
 	}
 
 	if (uudetArvot == true )
@@ -341,6 +346,7 @@ void loop()
 	//Kosketus
 	if (myTouch.dataAvailable() == true && koskettu == false)
 	{
+		Serial.println("koketyus");
 		myTouch.read();
 		xKord = myTouch.getX();
 		yKord = myTouch.getY();
@@ -614,10 +620,10 @@ void alkuarvojenHaku()
 	}
 	punaraja*= 100;
 	mittarinMaks = jako * 1000;
-	Serial.println(minRajoitus);
-	Serial.println(maxRajoitus);
-	Serial.println(punaraja);
-	Serial.println(jako);
+	//Serial.println(minRajoitus);
+	//Serial.println(maxRajoitus);
+	//Serial.println(punaraja);
+	//Serial.println(jako);
 }
 
 void piirraEllipsi(int xKeski, int yKeski, int a, int b, int vari)
@@ -815,7 +821,6 @@ void rpmFunktio()
 void serialEvent2()
 {
 	//Tiedon haku
-	//digitalWrite(vastaanottoPin, LOW);
 	//Serial.println(Serial2.available());
 	if (Serial2.available() >= tauvutMaara)
 	{
@@ -869,28 +874,20 @@ void serialEvent2()
 
 void laheta(char otsikko, int data)
 {
-	Serial.print("Lahetettava data: ");
-	Serial.println(data, DEC);
-	//digitalWrite(lahetysPin, HIGH);
+	//Serial.print("Lahetettava data: ");
+	//Serial.println(data, DEC);
 
 	laheta(otsikko);
 	Serial2.write(data);
-
-	//delay(80);
-	//digitalWrite(lahetysPin, LOW);
 
 }
 void laheta(char otsikko)
 {
 	//Serial.print("Lahetettava otsikko: ");
 	//Serial.println(otsikko);
-	//digitalWrite(lahetysPin, HIGH);
-
+	
 	Serial2.write('V');
 	Serial2.write(otsikko);
-
-	//delay(100);
-	//digitalWrite(lahetysPin, LOW);
 }
 
 void bensaPiirto()
